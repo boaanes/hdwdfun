@@ -8,17 +8,19 @@ data VertexType a = Variable a | Method a deriving (Show, Eq, Ord)
 
 type Constraint a = ([VertexType a], [VertexType a])
 
+-- Below is example data for the whap example
+
 constraintA :: Constraint String
-constraintA = ([Variable "A", Variable "B", Variable "C"], [Method "F", Method "G"])
+constraintA = ([Variable "w", Variable "A", Variable "h"], [Method "A -> w, h", Method "w, h -> A"])
 
 constraintB :: Constraint String
-constraintB = ([Variable "A", Variable "C", Variable "D"], [Method "E", Method "H", Method "I"])
+constraintB = ([Variable "w", Variable "h", Variable "p"], [Method "h, p -> w", Method "w, h -> p", Method "w, p -> h"])
 
 constraints :: [Constraint String]
 constraints = [constraintA, constraintB]
 
 exampleAdjList :: [(VertexType String, [VertexType String])]
-exampleAdjList = [(Variable "A", [Method "G", Method "I", Method "H"]), (Variable "B", [Method "F"]), (Variable "C", [Method "H", Method "G", Method "E"]), (Variable "D", [Method "E", Method "I"]), (Method "E", [Variable "A"]), (Method "F", [Variable "A", Variable "C"]), (Method "G", [Variable "B"]), (Method "H", [Variable "D"]), (Method "I", [Variable "C"])]
+exampleAdjList = [(Variable "w", [Method "w, h -> A", Method "w, p -> h", Method "w, h -> p"]), (Variable "A", [Method "A -> w, h"]), (Variable "h", [Method "w, h -> p", Method "w, h -> A", Method "h, p -> w"]), (Variable "p", [Method "h, p -> w", Method "w, p -> h"]), (Method "h, p -> w", [Variable "w"]), (Method "A -> w, h", [Variable "w", Variable "h"]), (Method "w, h -> A", [Variable "A"]), (Method "w, h -> p", [Variable "p"]), (Method "w, p -> h", [Variable "h"])]
 
 exampleGraph :: Graph (VertexType String)
 exampleGraph = stars exampleAdjList
