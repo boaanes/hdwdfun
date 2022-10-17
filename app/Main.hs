@@ -23,8 +23,11 @@ exampleAdjList = [(Variable "A", [Method "G", Method "I", Method "H"]), (Variabl
 exampleGraph :: Graph (VertexType String)
 exampleGraph = stars exampleAdjList
 
+
+-------- Generic functions --------
+
 -- A function to get vertices pointing to a vertex
-inboundVertices :: Ord a =>a -> Graph a -> [a]
+inboundVertices :: Ord a => a -> Graph a -> [a]
 inboundVertices v g = filter (\x -> v `elem` outboundVertices x g) (vertexList g)
 
 -- A function to get neighbourhood of a vertex
@@ -39,47 +42,52 @@ completeNeighbourhood v g = [x | x <- vertexList g, x /= v, hasEdge v x g || has
 getSources :: Ord a => Graph a -> [a]
 getSources g = filter (\x -> null (inboundVertices x g)) (vertexList g)
 
--- Get constraint from a method
-getConstraintFromMethod :: Ord a => a -> [([a], [a])] -> ([a], [a])
-getConstraintFromMethod v cs = head $ filter (\(_, y) -> v `elem` y) cs
-
--- Get all constraints from a variable
-getConstraintsFromVariable :: Ord a => a -> [([a], [a])] -> [([a], [a])]
-getConstraintsFromVariable v = filter (\(x, _) -> v `elem` x)
-
--- check if a variable is free, a variable is free if it is only in one constraint
-isVariableFree :: Ord a => a -> [([a], [a])] -> Graph a -> Bool
-isVariableFree v cs g = isVertexInGraph v g && length (getConstraintsFromVariable v cs) == 1
-
--- check if a method is free, a method is free if all its outbound vertices are free variables
-isMethodFree :: Ord a => a -> [([a], [a])] -> Graph a -> Bool
-isMethodFree v cs g = isVertexInGraph v g && all (\x -> isVariableFree x cs g) (outboundVertices v g)
-
 -- check if vertex is part of graph
 isVertexInGraph :: Ord a => a -> Graph a -> Bool
 isVertexInGraph v g = v `elem` vertexList g
 
--- check if a constraint has a free method
-constraintHasFreeMethod :: Ord a => ([a], [a]) -> [([a], [a])] -> Graph a -> Bool
-constraintHasFreeMethod (_, y) cs g = any (\x -> isMethodFree x cs g) y
+-------- HotDrink functions --------
 
--- get all free methods from a constraint
-getFreeMethodsFromConstraint :: Ord a => ([a], [a]) -> [([a], [a])] -> Graph a -> [a]
-getFreeMethodsFromConstraint (_, y) cs g = filter (\x -> isMethodFree x cs g) y
-
--- get arbitrary free method from a constraint
-getArbitraryFreeMethodFromConstraint :: Ord a => ([a], [a]) -> [([a], [a])] -> Graph a -> a
-getArbitraryFreeMethodFromConstraint c cs g = head $ getFreeMethodsFromConstraint c cs g
-
--- get all constraints with free methods
-getConstraintsWithFreeMethods :: Ord a => [([a], [a])] -> Graph a -> [([a], [a])]
-getConstraintsWithFreeMethods cs g = filter (\x -> constraintHasFreeMethod x cs g) cs
-
--- Remove non free methods from a graph
-removeNonFreeMethods :: Ord a => Graph a -> [([a], [a])] -> Graph a
-removeNonFreeMethods g cs = foldr (\x -> removeVertex x) g (filter (\x -> not (isMethodFree x cs g) || not (isVariable x)) (vertexList g))
-
--- Check if vertex is variable
 isVariable :: VertexType a -> Bool
 isVariable (Variable _) = True
 isVariable _            = False
+
+isMethod :: VertexType a -> Bool
+isMethod (Method _) = True
+isMethod _          = False
+
+-- Get constraint from a method
+getConstraintFromMethod :: (Ord a) => VertexType a -> [Constraint a] -> Constraint a
+getConstraintFromMethod v cs = head $ filter (\(_, y) -> v `elem` y) cs
+
+-- Get all constraints from a variable
+getConstraintsFromVariable :: Ord a => VertexType a -> [Constraint a] -> [Constraint a]
+getConstraintsFromVariable v = filter (\(x, _) -> v `elem` x)
+
+-- check if a variable is free, a variable is free if it is only in one constraint
+isVariableFree :: Ord a => VertexType a -> [Constraint a] -> Graph (VertexType a) -> Bool
+isVariableFree v cs g = isVertexInGraph v g && length (getConstraintsFromVariable v cs) == 1
+
+-- check if a method is free, a method is free if all its outbound vertices are free variables
+isMethodFree :: Ord a => VertexType a -> [Constraint a] -> Graph (VertexType a) -> Bool
+isMethodFree v cs g = isVertexInGraph v g && all (\x -> isVariableFree x cs g) (outboundVertices v g)
+
+-- check if a constraint has a free method
+constraintHasFreeMethod :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> Bool
+constraintHasFreeMethod (_, y) cs g = any (\x -> isMethodFree x cs g) y
+
+-- get all free methods from a constraint
+getFreeMethodsFromConstraint :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> [VertexType a]
+getFreeMethodsFromConstraint (_, y) cs g = filter (\x -> isMethodFree x cs g) y
+
+-- get arbitrary free method from a constraint
+getArbitraryFreeMethodFromConstraint :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> VertexType a
+getArbitraryFreeMethodFromConstraint c cs g = head $ getFreeMethodsFromConstraint c cs g
+
+-- get all constraints with free methods
+getConstraintsWithFreeMethods :: Ord a => [Constraint a] -> Graph (VertexType a) -> [Constraint a]
+getConstraintsWithFreeMethods cs g = filter (\x -> constraintHasFreeMethod x cs g) cs
+
+-- Remove non free methods from a graph, but keep all variables
+removeNonFreeMethods :: Ord a => Graph (VertexType a) -> [Constraint a] -> Graph (VertexType a)
+removeNonFreeMethods g cs = foldr removeVertex g (filter (\x -> not (isMethodFree x cs g) && not (isVariable x)) (vertexList g))
