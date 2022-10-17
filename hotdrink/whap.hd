@@ -1,0 +1,18 @@
+import { sqrt } from './bo.js'
+
+component whap {
+
+  var w: number = 10, h: number = 10, a: number, p: number;
+
+  constraint awh {
+    (w, h -> a) => w*h;
+    (a -> w, h) => [sqrt(a), sqrt(a)];
+  }
+
+  constraint pwh {
+    (w, h -> p) => 2*(w+h);
+    (p, h -> w) => p/2 - h;
+    (p, w -> h) => p/2 - w;
+  }
+
+}
