@@ -5,14 +5,14 @@ component whap {
   var w: number = 10, h: number = 10, a: number, p: number;
 
   constraint awh {
-    (w, h -> a) => w*h;
-    (a -> w, h) => [sqrt(a), sqrt(a)];
+    area(w, h -> a) => w*h;
+    widthAndHeight(a -> w, h) => [sqrt(a), sqrt(a)];
   }
 
   constraint pwh {
-    (w, h -> p) => 2*(w+h);
-    (p, h -> w) => p/2 - h;
-    (p, w -> h) => p/2 - w;
+    perimiter(w, h -> p) => 2*(w+h);
+    width(p, h -> w) => p/2 - h;
+    height(p, w -> h) => p/2 - w;
   }
 
 }
