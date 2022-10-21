@@ -39,6 +39,8 @@ library
 executable app-exe
   main-is: Main.hs
   other-modules:
+      DSL
+      HotDrink
       Paths_app
   hs-source-dirs:
       app
