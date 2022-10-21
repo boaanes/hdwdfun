@@ -4,25 +4,57 @@ import           Algebra.Graph
 main :: IO ()
 main = return ()
 
-data VertexType a = Variable a | Method a deriving (Show, Eq, Ord)
 
-type Constraint a = ([VertexType a], [VertexType a])
+type Identifier = String
+type Variable = (Identifier, Maybe Int)
+type Method = String
+
+data VertexType = Var Variable | Met Method deriving (Show, Eq, Ord)
+
+type Constraint = ([Variable], [Method])
 
 -- Below is example data for the whap example
 
-constraintA :: Constraint String
-constraintA = ([Variable "w", Variable "A", Variable "h"], [Method "A -> w, h", Method "w, h -> A"])
+w :: Variable
+w = ("w", Just 10)
 
-constraintB :: Constraint String
-constraintB = ([Variable "w", Variable "h", Variable "p"], [Method "h, p -> w", Method "w, h -> p", Method "w, p -> h"])
+h :: Variable
+h = ("h", Just 10)
 
-constraints :: [Constraint String]
+a :: Variable
+a = ("A", Just 100)
+
+p :: Variable
+p = ("p", Just 40)
+
+m1 :: Method
+m1 = "w, h -> a"
+
+m2 :: Method
+m2 = "w, h -> p"
+
+m3 :: Method
+m3 = "a -> w, h"
+
+m4 :: Method
+m4 = "p, w -> h"
+
+m5 :: Method
+m5 = "p, h -> w"
+
+constraintA :: Constraint
+constraintA = ([w, a, h], [m1, m3])
+
+constraintB :: Constraint
+constraintB = ([w, h, p], [m2, m4, m5])
+
+constraints :: [Constraint]
 constraints = [constraintA, constraintB]
 
-exampleAdjList :: [(VertexType String, [VertexType String])]
-exampleAdjList = [(Variable "w", [Method "w, h -> A", Method "w, p -> h", Method "w, h -> p"]), (Variable "A", [Method "A -> w, h"]), (Variable "h", [Method "w, h -> p", Method "w, h -> A", Method "h, p -> w"]), (Variable "p", [Method "h, p -> w", Method "w, p -> h"]), (Method "h, p -> w", [Variable "w"]), (Method "A -> w, h", [Variable "w", Variable "h"]), (Method "w, h -> A", [Variable "A"]), (Method "w, h -> p", [Variable "p"]), (Method "w, p -> h", [Variable "h"])]
+exampleAdjList :: [(VertexType, [VertexType])]
+exampleAdjList = [(Var w, [Met m1, Met m4, Met m2]), (Var a, [Met m3]), (Var h, [Met m2, Met m1, Met m5]), (Var p, [Met m5, Met m4]), (Met m5, [Var w]), (Met m3, [Var w, Var h]), (Met m1, [Var a]), (Met m2, [Var p]), (Met m4, [Var h])]
 
-exampleGraph :: Graph (VertexType String)
+exampleGraph :: Graph VertexType
 exampleGraph = stars exampleAdjList
 
 
@@ -50,46 +82,50 @@ isVertexInGraph v g = v `elem` vertexList g
 
 -------- HotDrink functions --------
 
-isVariable :: VertexType a -> Bool
-isVariable (Variable _) = True
-isVariable _            = False
+isVariable :: VertexType -> Bool
+isVariable (Var _) = True
+isVariable _       = False
 
-isMethod :: VertexType a -> Bool
-isMethod (Method _) = True
-isMethod _          = False
+isMethod :: VertexType -> Bool
+isMethod (Met _) = True
+isMethod _       = False
 
 -- Get constraint from a method
-getConstraintFromMethod :: (Ord a) => VertexType a -> [Constraint a] -> Constraint a
-getConstraintFromMethod v cs = head $ filter (\(_, y) -> v `elem` y) cs
+getConstraintFromMethod :: VertexType -> [Constraint] -> Constraint
+getConstraintFromMethod (Met m) cs = head [c | c <- cs, m `elem` snd c]
+getConstraintFromMethod _ _        = error "Not a method"
 
 -- Get all constraints from a variable
-getConstraintsFromVariable :: Ord a => VertexType a -> [Constraint a] -> [Constraint a]
-getConstraintsFromVariable v = filter (\(x, _) -> v `elem` x)
+getConstraintsFromVariable :: VertexType -> [Constraint] -> [Constraint]
+getConstraintsFromVariable (Var v) cs = [c | c <- cs, v `elem` fst c]
+getConstraintsFromVariable _ _        = error "Not a variable"
 
--- check if a variable is free, a variable is free if it is only in one constraint
-isVariableFree :: Ord a => VertexType a -> [Constraint a] -> Graph (VertexType a) -> Bool
-isVariableFree v cs g = isVertexInGraph v g && length (getConstraintsFromVariable v cs) == 1
+-- check if a variable is free, a variable is free if it in only in one constraint
+isVariableFree :: VertexType -> [Constraint] -> Graph VertexType -> Bool
+isVariableFree (Var v) cs g = isVertexInGraph (Var v) g && length (getConstraintsFromVariable (Var v) cs) == 1
+isVariableFree _ _ _        = error "Not a variable"
 
 -- check if a method is free, a method is free if all its outbound vertices are free variables
-isMethodFree :: Ord a => VertexType a -> [Constraint a] -> Graph (VertexType a) -> Bool
-isMethodFree v cs g = isVertexInGraph v g && all (\x -> isVariableFree x cs g) (outboundVertices v g)
+isMethodFree :: VertexType -> [Constraint] -> Graph VertexType -> Bool
+isMethodFree (Met m) cs g = isVertexInGraph (Met m) g && all (\x -> isVariableFree x cs g) (outboundVertices (Met m) g)
+isMethodFree _ _ _        = error "Not a method"
 
 -- check if a constraint has a free method
-constraintHasFreeMethod :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> Bool
-constraintHasFreeMethod (_, y) cs g = any (\x -> isMethodFree x cs g) y
+constraintHasFreeMethod :: Constraint -> [Constraint] -> Graph VertexType -> Bool
+constraintHasFreeMethod (_, y) cs g = any ((\x -> isMethodFree x cs g) . Met) y
 
 -- get all free methods from a constraint
-getFreeMethodsFromConstraint :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> [VertexType a]
-getFreeMethodsFromConstraint (_, y) cs g = filter (\x -> isMethodFree x cs g) y
+getFreeMethodsFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> [VertexType]
+getFreeMethodsFromConstraint (_, y) cs g = filter (\x -> isMethodFree x cs g) (map Met y)
 
 -- get arbitrary free method from a constraint
-getArbitraryFreeMethodFromConstraint :: Ord a => Constraint a -> [Constraint a] -> Graph (VertexType a) -> VertexType a
-getArbitraryFreeMethodFromConstraint c cs g = head $ getFreeMethodsFromConstraint c cs g
+getArbitraryFreeMethodFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> VertexType
+getArbitraryFreeMethodFromConstraint (_, y) cs g = head (filter (\x -> isMethodFree x cs g) (map Met y))
 
 -- get all constraints with free methods
-getConstraintsWithFreeMethods :: Ord a => [Constraint a] -> Graph (VertexType a) -> [Constraint a]
+getConstraintsWithFreeMethods :: [Constraint] -> Graph VertexType -> [Constraint]
 getConstraintsWithFreeMethods cs g = filter (\x -> constraintHasFreeMethod x cs g) cs
 
--- Remove non free methods from a graph, but keep all variables
-removeNonFreeMethods :: Ord a => Graph (VertexType a) -> [Constraint a] -> Graph (VertexType a)
-removeNonFreeMethods g cs = foldr removeVertex g (filter (\x -> not (isMethodFree x cs g) && not (isVariable x)) (vertexList g))
+-- remove non free methods from a graph, but keep all variables
+removeNonFreeMethods :: [Constraint] -> Graph VertexType -> Graph VertexType
+removeNonFreeMethods cs g = foldr removeVertex g (filter (\x -> not (isVariable x) && not (isMethodFree x cs g)) (vertexList g))
