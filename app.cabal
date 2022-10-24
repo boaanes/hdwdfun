@@ -34,13 +34,15 @@ library
   build-depends:
       algebraic-graphs
     , base >=4.7 && <5
+    , parsec
   default-language: Haskell2010
 
 executable app-exe
   main-is: Main.hs
   other-modules:
-      DSL
+      Evaluator
       HotDrink
+      MethodParser
       Paths_app
   hs-source-dirs:
       app
@@ -49,6 +51,7 @@ executable app-exe
       algebraic-graphs
     , app
     , base >=4.7 && <5
+    , parsec
   default-language: Haskell2010
 
 test-suite app-test
@@ -63,4 +66,5 @@ test-suite app-test
       algebraic-graphs
     , app
     , base >=4.7 && <5
+    , parsec
   default-language: Haskell2010
