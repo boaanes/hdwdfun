@@ -1,7 +1,6 @@
 module Main where
 import           Algebra.Graph
 import           HotDrink
-import           MethodParser
 
 main :: IO ()
 main = return ()
