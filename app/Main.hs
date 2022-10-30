@@ -1,5 +1,8 @@
 module Main where
 import           Algebra.Graph
+import           Data.List     (nub)
+import           Evaluator
+import           GraphHelpers
 import           HotDrink
 
 main :: IO ()
@@ -26,6 +29,14 @@ getSources g = filter (\x -> null (inboundVertices x g)) (vertexList g)
 -- check if vertex is part of graph
 isVertexInGraph :: Ord a => a -> Graph a -> Bool
 isVertexInGraph v g = v `elem` vertexList g
+
+-- Topological sort of a graph
+topologicalSort :: Ord a => Graph a -> [a]
+topologicalSort g = topologicalSort' g (getSources g) []
+
+topologicalSort' :: Ord a => Graph a -> [a] -> [a] -> [a]
+topologicalSort' _ [] sorted = sorted
+topologicalSort' g (v:vs) sorted = topologicalSort' g (vs ++ outboundVertices v g) (sorted ++ [v])
 
 -------- HotDrink functions --------
 
@@ -76,3 +87,22 @@ getConstraintsWithFreeMethods cs g = filter (\x -> constraintHasFreeMethod x cs 
 -- remove non free methods from a graph, but keep all variables
 removeNonFreeMethods :: [Constraint] -> Graph VertexType -> Graph VertexType
 removeNonFreeMethods cs g = foldr removeVertex g (filter (\x -> not (isVariable x) && not (isMethodFree x cs g)) (vertexList g))
+
+-- update value of a variable in a graph using replaceVertex
+updateVariableValue :: Identifier -> Int -> Graph VertexType -> Graph VertexType
+updateVariableValue ident val g =
+  case lookupLabel ident g of
+    Just (VertexVar (i, v)) -> replaceVertex (VertexVar (i, v)) (VertexVar (i, Just val)) g
+    _                       -> error "Variable not found"
+
+-- eval method
+evalMethod :: Identifier -> Graph VertexType -> Graph VertexType
+evalMethod i g =
+  case lookupLabel i g of
+    Nothing                            -> error "method does not exist"
+    Just (VertexVar _)                 -> error "cant evaluate a variable"
+    Just (VertexMet (_, _, out, expr)) -> updateVariableValue out (eval g expr) g
+
+-- evaluate all free methods in a graph using removeNonFreeMethods
+solve :: [Constraint] -> Graph VertexType -> Graph VertexType
+solve cs g = foldr evalMethod g $ nub $ map extractLabel $ filter isMethod $ topologicalSort $ removeNonFreeMethods cs g

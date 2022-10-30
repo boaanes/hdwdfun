@@ -1,15 +1,21 @@
 module Evaluator where
 
+import           Algebra.Graph
+import           GraphHelpers
+import           HotDrink
 import           MethodParser
 
-{-
-eval :: Expr -> Int
-eval (Add x y) = eval x + eval y
-eval (Sub x y) = eval x - eval y
-eval (Mul x y) = eval x * eval y
-eval (Div x y) = eval x `div` eval y
-eval (Var v)   = case snd v of
-  Just x  -> x
-  Nothing -> error "Variable not bound"
-eval (Lit x)   = x
--}
+
+eval :: Graph VertexType -> Expr -> Int
+eval g (Add x y) = eval g x + eval g y
+eval g (Sub x y) = eval g x - eval g y
+eval g (Mul x y) = eval g x * eval g y
+eval g (Div x y) = eval g x `div` eval g y
+eval g (Sqrt x)  = floor $ sqrt $ fromIntegral $ eval g x
+eval g (Var x)   =
+  case lookupLabel x g of
+    Just (VertexVar (_, Just v))  -> v
+    Just (VertexVar (_, Nothing)) -> error "Variable not set"
+    Just (VertexMet _)            -> error "Identifier is a method"
+    Nothing                       -> error "Variable not found"
+eval _ (Lit x)   = x

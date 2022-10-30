@@ -2,16 +2,17 @@
 module MethodParser where
 
 import           Control.Applicative (Alternative (..))
-import           Data.Char           (isDigit, isSpace)
+import           Data.Char           (isDigit, isLetter, isSpace)
 
 data Expr
   = Add Expr Expr
   | Sub Expr Expr
   | Mul Expr Expr
   | Div Expr Expr
+  | Sqrt Expr
   | Var String
   | Lit Int
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 newtype Parser a = Parser
   { runParser :: String -> Maybe (a, String)
@@ -44,9 +45,6 @@ instance Monad Parser where
     (output, rest) <- p input
     runParser (f output) rest
 
-alphabet :: String
-alphabet = take 26 ['a','b'..] ++ take 26 ['A', 'B']
-
 char :: Char -> Parser Char
 char x = Parser p
   where
@@ -77,7 +75,7 @@ string = traverse char
 
 exprVar :: Parser Expr
 exprVar = Var <$> (ws *> notNull vs <* ws)
-  where vs = spanP (`elem` alphabet)
+  where vs = spanP isLetter
 
 exprLit :: Parser Expr
 exprLit = f <$> (ws *> notNull (spanP isDigit) <* ws)
