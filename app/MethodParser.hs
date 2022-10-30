@@ -11,23 +11,24 @@ data Expr
   | Lit Int
   deriving (Show, Eq, Ord)
 
-data Error i
+data Error i e
   = EndOfInput
   | Unexpected i
+  | CustomError e
   | Empty
   deriving (Eq, Show)
 
-newtype Parser a = Parser
-  { runParser :: String -> Either [Error Char] (a, String)
+newtype Parser i e a = Parser
+  { runParser :: [i] -> Either [Error i e] (a, [i])
   }
 
-instance Functor Parser where
-  fmap :: (a -> b) -> Parser a -> Parser b
+instance Functor (Parser i e) where
+  fmap :: (a -> b) -> Parser i e a -> Parser i e b
   fmap f (Parser p) = Parser $ \input -> do
     (output, rest) <- p input
     Right (f output, rest)
 
-instance Applicative Parser where
+instance Applicative (Parser i e) where
   pure a = Parser $ \input -> Right (a, input)
 
   Parser p1 <*> Parser p2 = Parser $ \input -> do
@@ -35,7 +36,7 @@ instance Applicative Parser where
     (output, rest') <- p2 rest
     Right (p1' output, rest')
 
-instance Alternative Parser where
+instance (Eq i, Eq e) => Alternative (Parser i e) where
   empty = Parser $ \_ -> Left [Empty]
 
   Parser l <|> Parser r = Parser $ \input ->
@@ -46,14 +47,14 @@ instance Alternative Parser where
           Right (output, rest) -> Right (output, rest)
       Right (output, rest) -> Right (output, rest)
 
-instance Monad Parser where
+instance Monad (Parser i e) where
   return = pure
 
   Parser p >>= f = Parser $ \input -> do
     (output, rest) <- p input
     runParser (f output) rest
 
-char :: Char -> Parser Char
+char :: (Eq i) => i -> Parser i e i
 char x = Parser p
   where
     p (y:ys)
@@ -61,13 +62,13 @@ char x = Parser p
       | otherwise = Left [Unexpected y]
     p [] = Left [Empty]
 
-spanP :: (Char -> Bool) -> Parser String
+spanP :: (Char -> Bool) -> Parser Char e String
 spanP f =
   Parser $ \input ->
     let (token, rest) = span f input
       in Right (token, rest)
 
-notNull :: Parser [a] -> Parser [a]
+notNull :: Parser a e [a] -> Parser a e [a]
 notNull (Parser p) =
   Parser $ \input -> do
     (xs, rest) <- p input
@@ -75,40 +76,40 @@ notNull (Parser p) =
       then Left [Empty]
       else Right (xs, rest)
 
-ws :: Parser String
+ws :: Parser Char e String
 ws = spanP isSpace
 
-string :: String -> Parser String
+string :: Eq i => [i] -> Parser i e [i]
 string = traverse char
 
-exprVar :: Parser Expr
+exprVar :: Parser Char e Expr
 exprVar = Var <$> (ws *> notNull vs <* ws)
   where vs = spanP isLetter
 
-exprLit :: Parser Expr
+exprLit :: Parser Char e Expr
 exprLit = f <$> (ws *> notNull (spanP isDigit) <* ws)
   where f ds = Lit $ read ds
 
-exprParen :: Parser Expr
+exprParen :: (Eq e) => Parser Char e Expr
 exprParen = ws *> char '(' *> expr <* char ')' <* ws
 
-exprAddSub :: Parser Expr
+exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
   left <- exprTerm
   operator <- string "+" <|> string "-"
   Bin operator left <$> expr
 
-exprTerm :: Parser Expr
+exprTerm :: (Eq e) => Parser Char e Expr
 exprTerm = exprMulDiv <|> exprFactor
 
-exprMulDiv :: Parser Expr
+exprMulDiv :: (Eq e) => Parser Char e Expr
 exprMulDiv = do
   left <- exprFactor
   operator <- string "*" <|> string "/"
   Bin operator left <$> exprTerm
 
-exprFactor :: Parser Expr
+exprFactor :: (Eq e) => Parser Char e Expr
 exprFactor = exprParen <|> exprLit <|> exprVar
 
-expr :: Parser Expr
+expr :: (Eq e) => Parser Char e Expr
 expr = exprAddSub <|> exprTerm
