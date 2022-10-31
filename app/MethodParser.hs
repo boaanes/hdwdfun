@@ -9,7 +9,7 @@ data Expr
   = Bin String Expr Expr
   | Var String
   | Lit Int
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 data Error i e
   = EndOfInput
@@ -18,9 +18,8 @@ data Error i e
   | Empty
   deriving (Eq, Show)
 
-newtype Parser i e a = Parser
-  { runParser :: [i] -> Either [Error i e] (a, [i])
-  }
+newtype Parser i e a
+  = Parser { runParser :: [i] -> Either [Error i e] (a, [i]) }
 
 instance Functor (Parser i e) where
   fmap :: (a -> b) -> Parser i e a -> Parser i e b
