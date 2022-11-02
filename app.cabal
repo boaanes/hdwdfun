@@ -44,9 +44,12 @@ executable app-exe
       GraphHelpers
       HotDrink
       MethodParser
+      Temperature
+      Whap
       Paths_app
   hs-source-dirs:
       app
+      app/examples
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs

@@ -84,9 +84,12 @@ getArbitraryFreeMethodFromConstraint (_, y) cs g = head (filter (\x -> isMethodF
 getConstraintsWithFreeMethods :: [Constraint] -> Graph VertexType -> [Constraint]
 getConstraintsWithFreeMethods cs g = filter (\x -> constraintHasFreeMethod x cs g) cs
 
--- remove non free methods from a graph, but keep all variables
-removeNonFreeMethods :: [Constraint] -> Graph VertexType -> Graph VertexType
-removeNonFreeMethods cs g = foldr removeVertex g (filter (\x -> not (isVariable x) && not (isMethodFree x cs g)) (vertexList g))
+-- get arbitrary free method from each constraint
+getArbitraryFreeMethodsFromConstraints :: [Constraint] -> Graph VertexType -> [VertexType]
+getArbitraryFreeMethodsFromConstraints cs g = map (\x -> getArbitraryFreeMethodFromConstraint x cs g) (getConstraintsWithFreeMethods cs g)
+
+removeAllMethodsExcept :: [Identifier] -> Graph VertexType -> Graph VertexType
+removeAllMethodsExcept ms g = foldr removeVertex g (filter (\x -> not (isVariable x) && notElem (extractLabel x) ms) (vertexList g))
 
 -- update value of a variable in a graph using replaceVertex
 updateVariableValue :: Identifier -> Int -> Graph VertexType -> Graph VertexType
@@ -105,4 +108,4 @@ evalMethod i g =
 
 -- evaluate all free methods in a graph using removeNonFreeMethods
 solve :: [Constraint] -> Graph VertexType -> Graph VertexType
-solve cs g = foldr evalMethod g $ nub $ map extractLabel $ filter isMethod $ topologicalSort $ removeNonFreeMethods cs g
+solve cs g = foldr evalMethod g $ nub $ map extractLabel $ filter isMethod $ topologicalSort $ removeAllMethodsExcept (map extractLabel $ getArbitraryFreeMethodsFromConstraints cs g) g
