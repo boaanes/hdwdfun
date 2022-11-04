@@ -98,7 +98,6 @@ updateVariableValue ident val g =
     Just (VertexVar (i, v)) -> replaceVertex (VertexVar (i, v)) (VertexVar (i, Just val)) g
     _                       -> error "Variable not found"
 
--- eval method
 evalMethod :: Identifier -> Graph VertexType -> Graph VertexType
 evalMethod i g =
   case lookupLabel i g of
@@ -106,6 +105,11 @@ evalMethod i g =
     Just (VertexVar _)                 -> error "cant evaluate a variable"
     Just (VertexMet (_, _, out, expr)) -> updateVariableValue out (eval g expr) g
 
--- evaluate all free methods in a graph using removeNonFreeMethods
 solve :: [Constraint] -> Graph VertexType -> Graph VertexType
-solve cs g = foldr evalMethod g $ nub $ map extractLabel $ filter isMethod $ topologicalSort $ removeAllMethodsExcept (map extractLabel $ getArbitraryFreeMethodsFromConstraints cs g) g
+solve cs g =
+  foldr evalMethod g
+  $ nub
+  $ map extractLabel
+  $ filter isMethod
+  $ topologicalSort
+  $ removeAllMethodsExcept (map extractLabel (getArbitraryFreeMethodsFromConstraints cs g)) g
