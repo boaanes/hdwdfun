@@ -101,9 +101,9 @@ updateVariableValue ident val g =
 evalMethod :: Identifier -> Graph VertexType -> Graph VertexType
 evalMethod i g =
   case lookupLabel i g of
-    Nothing                            -> error "method does not exist"
-    Just (VertexVar _)                 -> error "cant evaluate a variable"
-    Just (VertexMet (_, _, out, expr)) -> updateVariableValue out (eval g expr) g
+    Nothing                         -> error "method does not exist"
+    Just (VertexVar _)              -> error "cant evaluate a variable"
+    Just (VertexMet (_, out, expr)) -> updateVariableValue out (eval g expr) g
 
 solve :: [Constraint] -> Graph VertexType -> Graph VertexType
 solve cs g =

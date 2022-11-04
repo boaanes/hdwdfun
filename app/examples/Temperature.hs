@@ -19,10 +19,10 @@ f :: Variable
 f = ("f", Just (-40))
 
 m1 :: Method
-m1 = ("m1", ["f"], "c", Bin "*" (Bin "-" (Var "f") (Lit 32)) (Bin "/" (Lit 5) (Lit 9)))
+m1 = ("m1", "c", Bin "*" (Bin "-" (Var "f") (Lit 32)) (Bin "/" (Lit 5) (Lit 9)))
 
 m2 :: Method
-m2 = ("m2", ["c"], "f", Bin "+" (Bin "*" (Var "c") (Bin "/" (Lit 9) (Lit 5))) (Lit 32))
+m2 = ("m2", "f", Bin "+" (Bin "*" (Var "c") (Bin "/" (Lit 9) (Lit 5))) (Lit 32))
 
 f2 :: Variable
 f2 = ("f", Just 100)

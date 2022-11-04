@@ -31,16 +31,16 @@ perimeter :: Variable
 perimeter = ("perimeter", Just 40)
 
 m1 :: Method
-m1 = ("m1", ["width", "height"], "area", Bin "*" (Var "width") (Var "height"))
+m1 = ("m1", "area", Bin "*" (Var "width") (Var "height"))
 
 m2 :: Method
-m2 = ("m2", ["width", "height"], "perimeter", Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))
+m2 = ("m2", "perimeter", Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))
 
 m4 :: Method
-m4 = ("m4", ["perimeter", "width"], "height", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))
+m4 = ("m4", "height", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))
 
 m5 :: Method
-m5 = ("m5", ["perimeter", "height"], "width", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))
+m5 = ("m5", "width", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))
 
 width2 :: Variable
 width2 = ("width", Just 20)
