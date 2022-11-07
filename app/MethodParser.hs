@@ -7,6 +7,7 @@ import           Data.List           (nub)
 
 data Expr
   = Bin String Expr Expr
+  | Sqrt Expr
   | Var String
   | Lit Double
   deriving (Eq, Ord, Show)
@@ -101,6 +102,9 @@ exprLit = Lit <$> (double <|> int)
 exprParen :: (Eq e) => Parser Char e Expr
 exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
 
+exprSqrt :: (Eq e) => Parser Char e Expr
+exprSqrt = Sqrt <$> (whiteSpace *> string "sqrt" *> whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace)
+
 exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
   left <- exprTerm
@@ -108,7 +112,7 @@ exprAddSub = do
   Bin operator left <$> expr
 
 exprTerm :: (Eq e) => Parser Char e Expr
-exprTerm = exprMulDiv <|> exprFactor
+exprTerm = exprMulDiv <|> exprSqrt <|> exprFactor
 
 exprMulDiv :: (Eq e) => Parser Char e Expr
 exprMulDiv = do
