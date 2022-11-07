@@ -6,11 +6,11 @@ import           HotDrink
 import           MethodParser
 
 
-eval :: Graph VertexType -> Expr -> Int
+eval :: Graph VertexType -> Expr -> Double
 eval g (Bin "+" a b) = eval g a + eval g b
 eval g (Bin "-" a b) = eval g a - eval g b
 eval g (Bin "*" a b) = eval g a * eval g b
-eval g (Bin "/" a b) = eval g a `div` eval g b
+eval g (Bin "/" a b) = eval g a / eval g b
 eval _ (Bin {})      = error "Operator not supported"
 eval g (Var x)       =
   case lookupLabel x g of

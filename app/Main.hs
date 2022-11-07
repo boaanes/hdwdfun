@@ -92,7 +92,7 @@ removeAllMethodsExcept :: [Identifier] -> Graph VertexType -> Graph VertexType
 removeAllMethodsExcept ms g = foldr removeVertex g (filter (\x -> not (isVariable x) && notElem (extractLabel x) ms) (vertexList g))
 
 -- update value of a variable in a graph using replaceVertex
-updateVariableValue :: Identifier -> Int -> Graph VertexType -> Graph VertexType
+updateVariableValue :: Identifier -> Double -> Graph VertexType -> Graph VertexType
 updateVariableValue ident val g =
   case lookupLabel ident g of
     Just (VertexVar (i, v)) -> replaceVertex (VertexVar (i, v)) (VertexVar (i, Just val)) g

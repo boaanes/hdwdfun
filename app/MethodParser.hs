@@ -8,7 +8,7 @@ import           Data.List           (nub)
 data Expr
   = Bin String Expr Expr
   | Var String
-  | Lit Int
+  | Lit Double
   deriving (Eq, Ord, Show)
 
 data Error i e
@@ -75,22 +75,31 @@ notNull (Parser p) =
       then Left [Empty]
       else Right (xs, rest)
 
-ws :: Parser Char e String
-ws = spanP isSpace
+whiteSpace :: Parser Char e String
+whiteSpace = spanP isSpace
 
 string :: Eq i => [i] -> Parser i e [i]
 string = traverse char
 
+double :: Parser Char e Double
+double = do
+  natural <- whiteSpace *> notNull (spanP isDigit)
+  _ <- string "."
+  decimal <- notNull (spanP isDigit) <* whiteSpace
+  return $ read (natural ++ "." ++ decimal)
+
+int :: Parser Char e Double
+int = whiteSpace *> (read <$> notNull (spanP isDigit)) <* whiteSpace
+
 exprVar :: Parser Char e Expr
-exprVar = Var <$> (ws *> notNull vs <* ws)
+exprVar = Var <$> (whiteSpace *> notNull vs <* whiteSpace)
   where vs = spanP isLetter
 
-exprLit :: Parser Char e Expr
-exprLit = f <$> (ws *> notNull (spanP isDigit) <* ws)
-  where f ds = Lit $ read ds
+exprLit :: (Eq e) => Parser Char e Expr
+exprLit = Lit <$> (double <|> int)
 
 exprParen :: (Eq e) => Parser Char e Expr
-exprParen = ws *> char '(' *> expr <* char ')' <* ws
+exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
 
 exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
