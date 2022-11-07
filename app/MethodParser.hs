@@ -103,7 +103,7 @@ exprParen :: (Eq e) => Parser Char e Expr
 exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
 
 exprSqrt :: (Eq e) => Parser Char e Expr
-exprSqrt = Sqrt <$> (whiteSpace *> string "sqrt" *> whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace)
+exprSqrt = Sqrt <$> (whiteSpace *> string "sqrt" *> exprParen <* whiteSpace)
 
 exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
