@@ -31,16 +31,19 @@ perimeter :: Variable
 perimeter = ("perimeter", Just 40)
 
 m1 :: Method
-m1 = ("m1", "area", Bin "*" (Var "width") (Var "height"))
+m1 = ("m1", ["area"], Bin "*" (Var "width") (Var "height"))
 
 m2 :: Method
-m2 = ("m2", "perimeter", Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))
+m2 = ("m2", ["perimeter"], Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))
+
+m3 :: Method
+m3 = ("m3", ["width", "height"], Sqrt (Var "area"))
 
 m4 :: Method
-m4 = ("m4", "height", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))
+m4 = ("m4", ["height"], Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))
 
 m5 :: Method
-m5 = ("m5", "width", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))
+m5 = ("m5", ["width"], Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))
 
 width2 :: Variable
 width2 = ("width", Just 20)
@@ -58,10 +61,10 @@ constraints :: [Constraint]
 constraints = [constraintA, constraintB]
 
 exampleAdjList :: [(VertexType, [VertexType])]
-exampleAdjList = [(VertexVar width, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, []), (VertexVar height, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m4, [VertexVar height])]
+exampleAdjList = [(VertexVar width, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, [VertexMet m3]), (VertexVar height, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m3, [VertexVar width, VertexVar height]), (VertexMet m4, [VertexVar height])]
 
 exampleAdjList2 :: [(VertexType, [VertexType])]
-exampleAdjList2 = [(VertexVar width2, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, []), (VertexVar height2, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width2]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m4, [VertexVar height2])]
+exampleAdjList2 = [(VertexVar width2, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, [VertexMet m3]), (VertexVar height2, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width2]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m3, [VertexVar width2, VertexVar height2]), (VertexMet m4, [VertexVar height2])]
 
 exampleGraph :: Graph VertexType
 exampleGraph = stars exampleAdjList

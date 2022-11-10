@@ -4,7 +4,7 @@ import           MethodParser
 
 type Identifier = String
 type Variable = (Identifier, Maybe Double)
-type Method = (Identifier, Identifier, Expr)
+type Method = (Identifier, [Identifier], Expr)
 
 data VertexType
   = VertexVar Variable

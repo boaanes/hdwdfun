@@ -103,7 +103,7 @@ evalMethod i g =
   case lookupLabel i g of
     Nothing                         -> error "method does not exist"
     Just (VertexVar _)              -> error "cant evaluate a variable"
-    Just (VertexMet (_, out, expr)) -> updateVariableValue out (eval g expr) g
+    Just (VertexMet (_, out, expr)) -> foldr (\ident g' -> updateVariableValue ident (eval g' expr) g') g out
 
 solve :: [Constraint] -> Graph VertexType -> Graph VertexType
 solve cs g =
