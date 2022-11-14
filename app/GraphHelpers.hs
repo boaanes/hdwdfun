@@ -6,8 +6,8 @@ import           HotDrink
 
 -- extract label
 extractLabel :: VertexType -> String
-extractLabel (VertexVar (x, _))    = x
-extractLabel (VertexMet (x, _, _)) = x
+extractLabel (VertexVar (x, _)) = x
+extractLabel (VertexMet (x, _)) = x
 
 -- lookup label in graph
 lookupLabel :: Identifier -> Graph VertexType -> Maybe VertexType
