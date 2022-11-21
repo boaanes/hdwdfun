@@ -46,6 +46,7 @@ executable app-exe
       MethodParser
       Temperature
       Whap
+      WhapStay
       Paths_app
   hs-source-dirs:
       app
