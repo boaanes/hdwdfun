@@ -18,12 +18,12 @@ isMethod _             = False
 
 -- Get constraint from a method
 getConstraintFromMethod :: VertexType -> [Constraint] -> Constraint
-getConstraintFromMethod (VertexMet m) cs = head [c | c <- cs, m `elem` snd c]
+getConstraintFromMethod (VertexMet m) cs = head [c | c <- cs, m `elem` (snd . fst) c]
 getConstraintFromMethod _ _              = error "Not a method"
 
 -- Get all constraints from a variable
 getConstraintsFromVariable :: VertexType -> [Constraint] -> [Constraint]
-getConstraintsFromVariable (VertexVar v) cs = [c | c <- cs, v `elem` fst c]
+getConstraintsFromVariable (VertexVar v) cs = [c | c <- cs, v `elem` (fst . fst) c]
 getConstraintsFromVariable _ _              = error "Not a variable"
 
 -- check if a variable is free, a variable is free if it in only in one constraint
@@ -38,15 +38,15 @@ isMethodFree _ _ _        = error "Not a method"
 
 -- check if a constraint has a free method
 constraintHasFreeMethod :: Constraint -> [Constraint] -> Graph VertexType -> Bool
-constraintHasFreeMethod (_, y) cs g = any ((\x -> isMethodFree x cs g) . VertexMet) y
+constraintHasFreeMethod ((_, y), _) cs g = any ((\x -> isMethodFree x cs g) . VertexMet) y
 
 -- get all free methods from a constraint
 getFreeMethodsFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> [VertexType]
-getFreeMethodsFromConstraint (_, y) cs g = filter (\x -> isMethodFree x cs g) (map VertexMet y)
+getFreeMethodsFromConstraint ((_, y), _) cs g = filter (\x -> isMethodFree x cs g) (map VertexMet y)
 
 -- get arbitrary free method from a constraint
 getArbitraryFreeMethodFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> VertexType
-getArbitraryFreeMethodFromConstraint (_, y) cs g = head (filter (\x -> isMethodFree x cs g) (map VertexMet y))
+getArbitraryFreeMethodFromConstraint ((_, y), _) cs g = head (filter (\x -> isMethodFree x cs g) (map VertexMet y))
 
 -- get all constraints with free methods
 getConstraintsWithFreeMethods :: [Constraint] -> Graph VertexType -> [Constraint]
@@ -81,3 +81,24 @@ solve cs g =
   $ filter isMethod
   $ topologicalSort
   $ removeAllMethodsExcept (map extractLabel (getArbitraryFreeMethodsFromConstraints cs g)) g
+
+-- Promote a constraint
+-- Promoting a constraint mean giving it the highest priority among all constraints
+-- Other constraints that initially had higher priority than the promoted constraint will decrease their priority by 1
+promoteConstraint :: Constraint -> [Constraint] -> [Constraint]
+promoteConstraint c = map (\c' ->
+    if c' == c
+      then (fst c', 0)
+      else if snd c' < snd c
+        then (fst c', snd c' + 1)
+        else c')
+
+-- Touch a variable
+-- touching a variable means promoting its constraint as long as the variable is free
+touchVariable :: VertexType -> [Constraint] -> Graph VertexType -> [Constraint]
+touchVariable (VertexVar v) cs g =
+  if isVariableFree (VertexVar v) cs g
+    then promoteConstraint (head (getConstraintsFromVariable (VertexVar v) cs)) cs
+    else cs
+touchVariable _ _ _ = error "Not a variable"
+

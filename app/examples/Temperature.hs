@@ -28,7 +28,7 @@ f2 :: Variable
 f2 = ("f", Just 100)
 
 constraintA :: Constraint
-constraintA = ([c, f], [m1, m1])
+constraintA = (([c, f], [m1, m1]), 1)
 
 constraints :: [Constraint]
 constraints = [constraintA]

@@ -22,7 +22,7 @@ width :: Variable
 width = ("width", Just 10)
 
 height :: Variable
-height = ("height", Just 10)
+height = ("height", Just 2)
 
 area :: Variable
 area = ("area", Just 100)
@@ -52,10 +52,10 @@ height2 :: Variable
 height2 = ("height", Just 20)
 
 constraintA :: Constraint
-constraintA = ([width, area, height], [m1])
+constraintA = (([width, area, height], [m1]), 1)
 
 constraintB :: Constraint
-constraintB = ([width, height, perimeter], [m2, m4, m5])
+constraintB = (([width, height, perimeter], [m2, m4, m5]), 2)
 
 constraints :: [Constraint]
 constraints = [constraintA, constraintB]
