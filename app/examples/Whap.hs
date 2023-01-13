@@ -31,19 +31,19 @@ perimeter :: Variable
 perimeter = ("perimeter", Just 40)
 
 m1 :: Method
-m1 = ("m1", [("area", Bin "*" (Var "width") (Var "height"))])
+m1 = ("m1", [("area", BinOp "*" (Var "width") (Var "height"))])
 
 m2 :: Method
-m2 = ("m2", [("perimeter", Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))])
+m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
 
 m3 :: Method
 m3 = ("m3", [("width", Sqrt (Var "area")), ("height", Sqrt (Var "area"))])
 
 m4 :: Method
-m4 = ("m4", [("height", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))])
+m4 = ("m4", [("height", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "width"))])
 
 m5 :: Method
-m5 = ("m5", [("width", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))])
+m5 = ("m5", [("width", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "height"))])
 
 width2 :: Variable
 width2 = ("width", Just 20)
@@ -52,10 +52,10 @@ height2 :: Variable
 height2 = ("height", Just 20)
 
 constraintA :: Constraint
-constraintA = (([width, area, height], [m1]), 1)
+constraintA = (([width, area, height], [m1]), 1, False)
 
 constraintB :: Constraint
-constraintB = (([width, height, perimeter], [m2, m4, m5]), 2)
+constraintB = (([width, height, perimeter], [m2, m4, m5]), 2, False)
 
 constraints :: [Constraint]
 constraints = [constraintA, constraintB]

@@ -2,4 +2,4 @@
 2. Hierarchical
 3. Read paper
 4. Just implement warmdrink specification in haskell
-5. Define grammar for specifying 
+5. Define grammar for specifying gui thing

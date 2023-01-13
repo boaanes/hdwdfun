@@ -6,7 +6,7 @@ import           Data.Char           (isDigit, isLetter, isSpace)
 import           Data.List           (nub)
 
 data Expr
-  = Bin String Expr Expr
+  = BinOp String Expr Expr
   | Sqrt Expr
   | Var String
   | Lit Double
@@ -109,7 +109,7 @@ exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
   left <- exprTerm
   operator <- string "+" <|> string "-"
-  Bin operator left <$> expr
+  BinOp operator left <$> expr
 
 exprTerm :: (Eq e) => Parser Char e Expr
 exprTerm = exprMulDiv <|> exprSqrt <|> exprFactor
@@ -118,7 +118,7 @@ exprMulDiv :: (Eq e) => Parser Char e Expr
 exprMulDiv = do
   left <- exprFactor
   operator <- string "*" <|> string "/"
-  Bin operator left <$> exprTerm
+  BinOp operator left <$> exprTerm
 
 exprFactor :: (Eq e) => Parser Char e Expr
 exprFactor = exprParen <|> exprLit <|> exprVar

@@ -12,4 +12,4 @@ data VertexType
   | VertexMet Method
   deriving (Eq, Ord, Show)
 
-type Constraint = (([Variable], [Method]), Priority)
+type Constraint = (([Variable], [Method]), Priority, Bool)

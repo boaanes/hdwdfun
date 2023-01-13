@@ -7,11 +7,11 @@ import           MethodParser
 
 
 eval :: Graph VertexType -> Expr -> Double
-eval g (Bin "+" a b) = eval g a + eval g b
-eval g (Bin "-" a b) = eval g a - eval g b
-eval g (Bin "*" a b) = eval g a * eval g b
-eval g (Bin "/" a b) = eval g a / eval g b
-eval _ (Bin {})      = error "Operator not supported"
+eval g (BinOp "+" a b) = eval g a + eval g b
+eval g (BinOp "-" a b) = eval g a - eval g b
+eval g (BinOp "*" a b) = eval g a * eval g b
+eval g (BinOp "/" a b) = eval g a / eval g b
+eval _ (BinOp {})      = error "Operator not supported"
 eval g (Sqrt e)      = sqrt $ eval g e
 eval g (Var x)       =
   case lookupLabel x g of

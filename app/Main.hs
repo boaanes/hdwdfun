@@ -17,14 +17,20 @@ isMethod (VertexMet _) = True
 isMethod _             = False
 
 -- Get constraint from a method
+-- stay constraints are not included
+-- a stay constraint is a constraint where the last element is True
 getConstraintFromMethod :: VertexType -> [Constraint] -> Constraint
-getConstraintFromMethod (VertexMet m) cs = head [c | c <- cs, m `elem` (snd . fst) c]
+getConstraintFromMethod (VertexMet m) constraints = head $ filter (\(x, _, s) -> m `elem` snd x && not s) constraints
 getConstraintFromMethod _ _              = error "Not a method"
 
 -- Get all constraints from a variable
 getConstraintsFromVariable :: VertexType -> [Constraint] -> [Constraint]
-getConstraintsFromVariable (VertexVar v) cs = [c | c <- cs, v `elem` (fst . fst) c]
+getConstraintsFromVariable (VertexVar v) cs = [((vs, ms), p, s) | ((vs, ms), p, s) <- cs, v `elem` vs && not s]
 getConstraintsFromVariable _ _              = error "Not a variable"
+
+getStayConstraintFromVariable :: VertexType -> [Constraint] -> Constraint
+getStayConstraintFromVariable (VertexVar v) cs = head $ filter (\((vs, _), _, s) -> v `elem` vs && s) cs
+getStayConstraintFromVariable _ _              = error "Not a variable"
 
 -- check if a variable is free, a variable is free if it in only in one constraint
 isVariableFree :: VertexType -> [Constraint] -> Graph VertexType -> Bool
@@ -38,15 +44,15 @@ isMethodFree _ _ _        = error "Not a method"
 
 -- check if a constraint has a free method
 constraintHasFreeMethod :: Constraint -> [Constraint] -> Graph VertexType -> Bool
-constraintHasFreeMethod ((_, y), _) cs g = any ((\x -> isMethodFree x cs g) . VertexMet) y
+constraintHasFreeMethod ((_, y), _, _) cs g = any ((\x -> isMethodFree x cs g) . VertexMet) y
 
 -- get all free methods from a constraint
 getFreeMethodsFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> [VertexType]
-getFreeMethodsFromConstraint ((_, y), _) cs g = filter (\x -> isMethodFree x cs g) (map VertexMet y)
+getFreeMethodsFromConstraint ((_, y), _, _) cs g = filter (\x -> isMethodFree x cs g) (map VertexMet y)
 
 -- get arbitrary free method from a constraint
 getArbitraryFreeMethodFromConstraint :: Constraint -> [Constraint] -> Graph VertexType -> VertexType
-getArbitraryFreeMethodFromConstraint ((_, y), _) cs g = head (filter (\x -> isMethodFree x cs g) (map VertexMet y))
+getArbitraryFreeMethodFromConstraint ((_, y), _, _) cs g = head (filter (\x -> isMethodFree x cs g) (map VertexMet y))
 
 -- get all constraints with free methods
 getConstraintsWithFreeMethods :: [Constraint] -> Graph VertexType -> [Constraint]
@@ -82,23 +88,34 @@ solve cs g =
   $ topologicalSort
   $ removeAllMethodsExcept (map extractLabel (getArbitraryFreeMethodsFromConstraints cs g)) g
 
+prioritizeConstraint :: Constraint -> Constraint
+prioritizeConstraint ((vs, ms), _, s) = ((vs, ms), 0, s)
+
+priority :: Constraint -> Int
+priority (_, p, _) = p
+
+incrementPriority :: Constraint -> Constraint
+incrementPriority ((vs, ms), p, s) = ((vs, ms), p + 1, s)
+
 -- Promote a constraint
 -- Promoting a constraint mean giving it the highest priority among all constraints
 -- Other constraints that initially had higher priority than the promoted constraint will decrease their priority by 1
 promoteConstraint :: Constraint -> [Constraint] -> [Constraint]
 promoteConstraint c = map (\c' ->
     if c' == c
-      then (fst c', 0)
-      else if snd c' < snd c
-        then (fst c', snd c' + 1)
+      then prioritizeConstraint c'
+      else if priority c' < priority c
+        then incrementPriority c'
         else c')
 
 -- Touch a variable
--- touching a variable means promoting its constraint as long as the variable is free
-touchVariable :: VertexType -> [Constraint] -> Graph VertexType -> [Constraint]
-touchVariable (VertexVar v) cs g =
-  if isVariableFree (VertexVar v) cs g
-    then promoteConstraint (head (getConstraintsFromVariable (VertexVar v) cs)) cs
-    else cs
-touchVariable _ _ _ = error "Not a variable"
+touchVariable :: VertexType -> [Constraint] -> [Constraint]
+touchVariable (VertexVar v) cs = promoteConstraint (getStayConstraintFromVariable (VertexVar v) cs) cs
+touchVariable _ _ = error "Not a variable"
+
+
+-- remove a constraint from a list of constraints, along with its corresponding methods in the graph
+removeConstraint :: Constraint -> Graph VertexType -> Graph VertexType
+removeConstraint ((_, ms), _, _) g = foldr (removeVertex . VertexMet) g ms
+
 

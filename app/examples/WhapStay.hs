@@ -1,5 +1,7 @@
 module WhapStay
     ( area
+    , constraintArea
+    , constraintPerimeter
     , constraintStayArea
     , constraintStayPerimeter
     , constraints
@@ -33,19 +35,19 @@ perimeter :: Variable
 perimeter = ("perimeter", Just 40)
 
 m1 :: Method
-m1 = ("m1", [("area", Bin "*" (Var "width") (Var "height"))])
+m1 = ("m1", [("area", BinOp "*" (Var "width") (Var "height"))])
 
 m2 :: Method
-m2 = ("m2", [("perimeter", Bin "*" (Lit 2) (Bin "+" (Var "width") (Var "height")))])
+m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
 
 m3 :: Method
 m3 = ("m3", [("width", Sqrt (Var "area")), ("height", Sqrt (Var "area"))])
 
 m4 :: Method
-m4 = ("m4", [("height", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "width"))])
+m4 = ("m4", [("height", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "width"))])
 
 m5 :: Method
-m5 = ("m5", [("width", Bin "-" (Bin "/" (Var "perimeter") (Lit 2)) (Var "height"))])
+m5 = ("m5", [("width", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "height"))])
 
 stayWidth :: Method
 stayWidth = ("stayWidth", [("width", Var "width")])
@@ -66,22 +68,22 @@ height2 :: Variable
 height2 = ("height", Just  2)
 
 constraintArea :: Constraint
-constraintArea = (([width, area, height], [m1]), 0)
+constraintArea = (([width, area, height], [m1, m3]), 0, False)
 
 constraintPerimeter :: Constraint
-constraintPerimeter = (([width, height, perimeter], [m2, m4, m5]), 1)
+constraintPerimeter = (([width, height, perimeter], [m2, m4, m5]), 1, False)
 
 constraintStayWidth :: Constraint
-constraintStayWidth = (([width], [stayWidth]), 2)
+constraintStayWidth = (([width], [stayWidth]), 2, True)
 
 constraintStayHeight :: Constraint
-constraintStayHeight = (([height], [stayHeight]), 3)
+constraintStayHeight = (([height], [stayHeight]), 3, True)
 
 constraintStayArea :: Constraint
-constraintStayArea = (([area], [stayArea]), 4)
+constraintStayArea = (([area], [stayArea]), 4, True)
 
 constraintStayPerimeter :: Constraint
-constraintStayPerimeter = (([perimeter], [stayPerimeter]), 5)
+constraintStayPerimeter = (([perimeter], [stayPerimeter]), 5, True)
 
 constraints :: [Constraint]
 constraints = [constraintArea, constraintPerimeter, constraintStayWidth, constraintStayHeight, constraintStayArea, constraintStayPerimeter]
