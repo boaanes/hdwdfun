@@ -4,6 +4,7 @@ import           Data.List     (nub)
 import           Evaluator
 import           GraphHelpers
 import           HotDrink
+import           NewImpl
 
 main :: IO ()
 main = return ()

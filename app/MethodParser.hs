@@ -12,6 +12,7 @@ data Expr
   | Lit Double
   deriving (Eq, Ord, Show)
 
+{-
 data Error i e
   = EndOfInput
   | Unexpected i
@@ -125,3 +126,4 @@ exprFactor = exprParen <|> exprLit <|> exprVar
 
 expr :: (Eq e) => Parser Char e Expr
 expr = exprAddSub <|> exprTerm
+-}
