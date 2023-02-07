@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 module NewImpl
     ( Method
+    , NodeKind (..)
     , constraintA
     , constraintB
     , m1
@@ -10,20 +11,29 @@ module NewImpl
     , m3
     , m4
     , m5
+    , mArea
+    , mHeight
+    , mPerimeter
+    , mWidth
     , methodUnion
     , plan
+    , stayArea
+    , stayHeight
+    , stayPerimeter
+    , stayWidth
     ) where
 
-import           Algebra.Graph
-import           Data.Maybe    (catMaybes)
-import           GraphHelpers
+import           Algebra.Graph.AdjacencyMap
+import           Algebra.Graph.AdjacencyMap.Algorithm (isAcyclic)
+import           Data.Maybe                           (catMaybes)
+import           NewGH
 
 data NodeKind
   = NodeVar String
   | NodeMet String
   deriving (Eq, Ord, Show)
 
-type Method = Graph NodeKind
+type Method = AdjacencyMap NodeKind
 
 data Constraint
   = Constraint [Method]
@@ -35,7 +45,8 @@ methodUnion g1 g2 =
   in if all ((<= 1) . length . (`inboundVertices` g))
     (filter (\case
       (NodeVar _) -> True
-      (NodeMet _) -> False) (vertexList g))
+      (NodeMet _) -> False) (vertexList g)) &&
+      isAcyclic g
     then Just g
     else Nothing
 
@@ -47,7 +58,7 @@ instance Monoid Constraint where
   mappend = (<>)
 
 plan :: [Constraint] -> Constraint
-plan = foldl (\a b -> if a <> b == mempty then a else a <> b) mempty
+plan = foldl (\a b -> if a <> b == Constraint [] then a else a <> b) mempty
 
 m1 :: Method
 m1 = stars [(NodeMet "m1", [NodeVar "area"]), (NodeVar "width", [NodeMet "m1"]), (NodeVar "height", [NodeMet "m1"])]
@@ -69,3 +80,28 @@ constraintA = Constraint [m1, m3]
 
 constraintB :: Constraint
 constraintB = Constraint [m2, m4, m5]
+
+mArea :: Method
+mArea = stars [(NodeMet "mArea", [NodeVar "area"])]
+
+mPerimeter :: Method
+mPerimeter = stars [(NodeMet "mPerimeter", [NodeVar "perimeter"])]
+
+mWidth :: Method
+mWidth = stars [(NodeMet "mWidth", [NodeVar "width"])]
+
+mHeight :: Method
+mHeight = stars [(NodeMet "mHeight", [NodeVar "height"])]
+
+stayArea :: Constraint
+stayArea = Constraint [mArea]
+
+stayPerimeter :: Constraint
+stayPerimeter = Constraint [mPerimeter]
+
+stayWidth :: Constraint
+stayWidth = Constraint [mWidth]
+
+stayHeight :: Constraint
+stayHeight = Constraint [mHeight]
+

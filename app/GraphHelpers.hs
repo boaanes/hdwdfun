@@ -2,6 +2,7 @@ module GraphHelpers
     ( completeNeighbourhood
     , extractLabel
     , getSources
+    , hasCycle
     , inboundVertices
     , isVertexInGraph
     , lookupLabel
@@ -42,6 +43,16 @@ topologicalSort g = topologicalSort' g (getSources g) []
 topologicalSort' :: Ord a => Graph a -> [a] -> [a] -> [a]
 topologicalSort' _ [] sorted = sorted
 topologicalSort' g (v:vs) sorted = topologicalSort' g (vs ++ outboundVertices v g) (sorted ++ [v])
+
+-- detect cycle in graph by using dfs
+hasCycle :: Ord a => Graph a -> Bool
+hasCycle g = hasCycle' g (getSources g) []
+
+hasCycle' :: Ord a => Graph a -> [a] -> [a] -> Bool
+hasCycle' _ [] _ = False
+hasCycle' g (v:vs) visited
+  | v `elem` visited = True
+  | otherwise = hasCycle' g (vs ++ outboundVertices v g) (visited ++ [v])
 
 -------- HotDrink specific functions --------
 extractLabel :: VertexType -> String
