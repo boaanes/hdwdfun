@@ -5,6 +5,8 @@ import           Evaluator
 import           GraphHelpers
 import           HotDrink
 import           NewImpl
+import           NewResize
+import           NewWhap
 
 main :: IO ()
 main = return ()

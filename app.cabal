@@ -44,8 +44,11 @@ executable app-exe
       GraphHelpers
       HotDrink
       MethodParser
+      NewDatastruct
       NewGH
       NewImpl
+      NewResize
+      NewWhap
       Temperature
       Whap
       WhapStay

@@ -117,3 +117,49 @@
     NodeMet "m1",
     NodeMet "m2",
 ]
+
+--- area as highest and only priority
+[
+    edges
+    [
+        (NodeVar "area",NodeMet "m3"),
+        (NodeVar "height",NodeMet "m2"),
+        (NodeVar "width",NodeMet "m2"),
+        (NodeMet "m2",NodeVar "perimeter"),
+        (NodeMet "m3",NodeVar "height"),
+        (NodeMet "m3",NodeVar "width"),
+        (NodeMet "mArea",NodeVar "area")
+    ]
+]
+
+-- topsort when area has highest and only priority
+[
+    NodeMet "mArea",
+    NodeMet "m3",
+    NodeMet "m2",
+]
+
+-- area as highest, perimeter as second highest
+[
+    edges
+    [
+        (NodeVar "area",NodeMet "m3"),
+        (NodeMet "m3",NodeVar "height"),
+        (NodeMet "m3",NodeVar "width"),
+        (NodeMet "mArea",NodeVar "area"),
+        (NodeMet "mPerimeter",NodeVar "perimeter")
+    ]
+]
+
+[
+    edges
+    [
+        (NodeVar "area",NodeMet "m3"),
+        (NodeVar "height",NodeMet "m2"),
+        (NodeVar "width",NodeMet "m2"),
+        (NodeMet "m2",NodeVar "perimeter"),
+        (NodeMet "m3",NodeVar "height"),
+        (NodeMet "m3",NodeVar "width"),
+        (NodeMet "mArea",NodeVar "area")
+    ]
+]
