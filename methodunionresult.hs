@@ -151,6 +151,8 @@
     ]
 ]
 
+
+
 [
     edges
     [
@@ -161,5 +163,45 @@
         (NodeMet "m3",NodeVar "height"),
         (NodeMet "m3",NodeVar "width"),
         (NodeMet "mArea",NodeVar "area")
+    ]
+]
+
+-- constraintA <> constraintB
+[
+    edges
+    [
+        (NodeVar "height",NodeMet "m1"),
+        (NodeVar "height",NodeMet "m2"),
+        (NodeVar "width",NodeMet "m1"),
+        (NodeVar "width",NodeMet "m2"),
+        (NodeMet "m1",NodeVar "area"),
+        (NodeMet "m2",NodeVar "perimeter")
+    ],
+    edges
+    [
+        (NodeVar "height",NodeMet "m1"),
+        (NodeVar "perimeter",NodeMet "m4"),
+        (NodeVar "width",NodeMet "m1"),
+        (NodeVar "width",NodeMet "m4"),
+        (NodeMet "m1",NodeVar "area"),
+        (NodeMet "m4",NodeVar "height")
+    ],
+    edges
+    [
+        (NodeVar "height",NodeMet "m1"),
+        (NodeVar "height",NodeMet "m5"),
+        (NodeVar "perimeter",NodeMet "m5"),
+        (NodeVar "width",NodeMet "m1"),
+        (NodeMet "m1",NodeVar "area"),
+        (NodeMet "m5",NodeVar "width")
+    ],
+    edges
+    [
+        (NodeVar "area",NodeMet "m3"),
+        (NodeVar "height",NodeMet "m2"),
+        (NodeVar "width",NodeMet "m2"),
+        (NodeMet "m2",NodeVar "perimeter"),
+        (NodeMet "m3",NodeVar "height"),
+        (NodeMet "m3",NodeVar "width")
     ]
 ]

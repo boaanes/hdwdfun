@@ -5,6 +5,7 @@ module NewDatastruct
     ( Constraint (..)
     , Method
     , NodeKind (..)
+    , concatMethodsInConstriant
     , methodUnion
     ) where
 
@@ -41,3 +42,8 @@ instance Semigroup Constraint where
 instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
+
+concatMethodsInConstriant :: Constraint -> Method
+concatMethodsInConstriant (Constraint [])     = empty
+concatMethodsInConstriant (Constraint (a:as)) = a <> concatMethodsInConstriant (Constraint as)
+
