@@ -205,3 +205,93 @@
         (NodeMet "m3",NodeVar "width")
     ]
 ]
+
+-- combinations
+[
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mArea") (NodeVar "area")]
+    ],
+    [
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")]
+    ],
+    [
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mPerimeter") (NodeVar "perimeter")]
+    ],
+    [
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")],
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    [
+        Constraint [edge (NodeMet "mWidth") (NodeVar "width")]
+    ],
+    [
+        Constraint [edge (NodeMet "mHeight") (NodeVar "height")]
+    ],
+    []
+]
+
+-- findBestSolution first try with [sA, sP, sW, sH]
+[
+    (NodeVar "area",NodeMet "m3"),
+    (NodeVar "height",NodeMet "m2"),
+    (NodeVar "width",NodeMet "m2"),
+    (NodeMet "m2",NodeVar "perimeter"),
+    (NodeMet "m3",NodeVar "height"),
+    (NodeMet "m3",NodeVar "width"),
+    (NodeMet "mArea",NodeVar "area")
+]
+
+-- [sP, sH, sA, sW]
+[
+    (NodeVar "height",NodeMet "m1"),
+    (NodeVar "height",NodeMet "m5"),
+    (NodeVar "perimeter",NodeMet "m5"),
+    (NodeVar "width",NodeMet "m1"),
+    (NodeMet "m1",NodeVar "area"),
+    (NodeMet "m5",NodeVar "width"),
+    (NodeMet "mHeight",NodeVar "height"),
+    (NodeMet "mPerimeter",NodeVar "perimeter")
+]

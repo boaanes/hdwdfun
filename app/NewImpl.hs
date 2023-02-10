@@ -1,6 +1,6 @@
 module NewImpl
-    ( bitCombination
-    , findBestSolution
+    ( bestPlan
+    , bitCombination
     , isMet
     , isValidSolution
     , isVar
@@ -12,6 +12,7 @@ module NewImpl
 
 import           Algebra.Graph.AdjacencyMap
 import           Data.Bits
+import           Data.Foldable              (find)
 import           NewDatastruct
 
 plan :: [Constraint] -> Constraint
@@ -36,11 +37,12 @@ isValidSolution constraints candidate = all (`partOf` candidate) constraints
 numberOfVars :: Constraint -> Int
 numberOfVars = length . filter isVar . vertexList . concatMethodsInConstriant
 
-findBestSolution :: [Constraint] -> [Constraint] -> Constraint
-findBestSolution stayConstraints mustConstraints =
+-- return first valid solution
+bestPlan :: [Constraint] -> [Constraint] -> Maybe Constraint
+bestPlan stayConstraints mustConstraints =
     let combinations = map (`bitCombination` stayConstraints) $ nCombinations $ numberOfVars $ mconcat mustConstraints
-        results = zip combinations $ map (\x -> isValidSolution mustConstraints (plan (x ++ mustConstraints))) combinations
-    in plan (fst (head (filter snd results)) ++ mustConstraints)
+        results = map (\x -> plan (x ++ mustConstraints)) combinations
+    in find (isValidSolution mustConstraints) results
 
 isVar :: NodeKind -> Bool
 isVar (NodeVar _) = True
