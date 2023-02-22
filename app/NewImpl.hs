@@ -1,15 +1,18 @@
+{-# LANGUAGE LambdaCase #-}
 module NewImpl
     ( bestPlan
     , bitCombination
     , isValidSolution
+    , methodsToEnforce
     , nCombinations
     , partOf
     , plan
     ) where
 
 import           Algebra.Graph.AdjacencyMap
+import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Data.Bits
-import           Data.Foldable              (find)
+import           Data.Foldable                        (find)
 import           NewDatastruct
 
 plan :: [Constraint] -> Constraint
@@ -38,3 +41,12 @@ bestPlan stayConstraints mustConstraints =
         results = map (\x -> plan (x ++ mustConstraints)) combinations
     in find (isValidSolution mustConstraints) results
 
+
+methodsToEnforce :: Maybe Constraint -> Maybe [NodeKind]
+methodsToEnforce (Just (Constraint [x])) =
+    case topSort x of
+        Right es -> Just $ filter (\case
+            NodeVar _ -> False
+            _         -> True) es
+        Left _   -> Nothing
+methodsToEnforce _ = Nothing
