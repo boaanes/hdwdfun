@@ -5,7 +5,6 @@ module NewImpl
     , isValidSolution
     , isVar
     , nCombinations
-    , numberOfVars
     , partOf
     , plan
     ) where
@@ -34,13 +33,10 @@ partOf (Constraint methods) candidate = any (`isSubgraphOf` concatMethodsInConst
 isValidSolution :: [Constraint] -> Constraint -> Bool
 isValidSolution constraints candidate = all (`partOf` candidate) constraints
 
-numberOfVars :: Constraint -> Int
-numberOfVars = length . filter isVar . vertexList . concatMethodsInConstriant
-
 -- return first valid solution
 bestPlan :: [Constraint] -> [Constraint] -> Maybe Constraint
 bestPlan stayConstraints mustConstraints =
-    let combinations = map (`bitCombination` stayConstraints) $ nCombinations $ numberOfVars $ mconcat mustConstraints
+    let combinations = map (`bitCombination` stayConstraints) $ nCombinations $ length stayConstraints
         results = map (\x -> plan (x ++ mustConstraints)) combinations
     in find (isValidSolution mustConstraints) results
 
