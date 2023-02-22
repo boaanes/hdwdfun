@@ -1,9 +1,7 @@
 module NewImpl
     ( bestPlan
     , bitCombination
-    , isMet
     , isValidSolution
-    , isVar
     , nCombinations
     , partOf
     , plan
@@ -39,11 +37,4 @@ bestPlan stayConstraints mustConstraints =
     let combinations = map (`bitCombination` stayConstraints) $ nCombinations $ length stayConstraints
         results = map (\x -> plan (x ++ mustConstraints)) combinations
     in find (isValidSolution mustConstraints) results
-
-isVar :: NodeKind -> Bool
-isVar (NodeVar _) = True
-isVar (NodeMet _) = False
-
-isMet :: NodeKind -> Bool
-isMet = not . isVar
 
