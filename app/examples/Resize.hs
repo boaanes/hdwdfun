@@ -1,4 +1,4 @@
-module NewResize
+module Resize
     ( h1
     , h2
     , mah
@@ -22,7 +22,7 @@ module NewResize
     , w2
     ) where
 import           Algebra.Graph.AdjacencyMap
-import           NewDatastruct
+import           HotDrink
 
 h1 :: Method
 h1 = stars [(NodeMet "h1", [NodeVar "rh"]), (NodeVar "ih", [NodeMet "h1"]), (NodeVar "ah", [NodeMet "h1"])]

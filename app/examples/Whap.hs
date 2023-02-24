@@ -1,74 +1,61 @@
 module Whap
-    ( area
-    , constraints
-    , exampleGraph
-    , exampleGraph2
-    , height
+    ( constraintA
+    , constraintB
     , m1
     , m2
     , m3
     , m4
     , m5
-    , perimeter
-    , width
+    , stayArea
+    , stayHeight
+    , stayPerimeter
+    , stayWidth
     ) where
-
-import           Algebra.Graph
+import           Algebra.Graph.AdjacencyMap
 import           HotDrink
-import           MethodParser
-
--- Below is example data for the whap example
-
-width :: Variable
-width = ("width", Just 10)
-
-height :: Variable
-height = ("height", Just 2)
-
-area :: Variable
-area = ("area", Just 100)
-
-perimeter :: Variable
-perimeter = ("perimeter", Just 40)
 
 m1 :: Method
-m1 = ("m1", [("area", BinOp "*" (Var "width") (Var "height"))])
+m1 = stars [(NodeMet "m1", [NodeVar "area"]), (NodeVar "width", [NodeMet "m1"]), (NodeVar "height", [NodeMet "m1"])]
 
 m2 :: Method
-m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
+m2 = stars [(NodeMet "m2", [NodeVar "perimeter"]), (NodeVar "width", [NodeMet "m2"]), (NodeVar "height", [NodeMet "m2"])]
 
 m3 :: Method
-m3 = ("m3", [("width", Sqrt (Var "area")), ("height", Sqrt (Var "area"))])
+m3 = stars [(NodeMet "m3", [NodeVar "height", NodeVar "width"]), (NodeVar "area", [NodeMet "m3"])]
 
 m4 :: Method
-m4 = ("m4", [("height", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "width"))])
+m4 = stars [(NodeMet "m4", [NodeVar "height"]), (NodeVar "perimeter", [NodeMet "m4"]), (NodeVar "width", [NodeMet "m4"])]
 
 m5 :: Method
-m5 = ("m5", [("width", BinOp "-" (BinOp "/" (Var "perimeter") (Lit 2)) (Var "height"))])
-
-width2 :: Variable
-width2 = ("width", Just 20)
-
-height2 :: Variable
-height2 = ("height", Just 20)
+m5 = stars [(NodeMet "m5", [NodeVar "width"]), (NodeVar "perimeter", [NodeMet "m5"]), (NodeVar "height", [NodeMet "m5"])]
 
 constraintA :: Constraint
-constraintA = (([width, area, height], [m1]), 1, False)
+constraintA = Constraint [m1, m3]
 
 constraintB :: Constraint
-constraintB = (([width, height, perimeter], [m2, m4, m5]), 2, False)
+constraintB = Constraint [m2, m4, m5]
 
-constraints :: [Constraint]
-constraints = [constraintA, constraintB]
+mArea :: Method
+mArea = stars [(NodeMet "mArea", [NodeVar "area"])]
 
-exampleAdjList :: [(VertexType, [VertexType])]
-exampleAdjList = [(VertexVar width, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, [VertexMet m3]), (VertexVar height, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m3, [VertexVar width, VertexVar height]), (VertexMet m4, [VertexVar height])]
+mPerimeter :: Method
+mPerimeter = stars [(NodeMet "mPerimeter", [NodeVar "perimeter"])]
 
-exampleAdjList2 :: [(VertexType, [VertexType])]
-exampleAdjList2 = [(VertexVar width2, [VertexMet m1, VertexMet m4, VertexMet m2]), (VertexVar area, [VertexMet m3]), (VertexVar height2, [VertexMet m2, VertexMet m1, VertexMet m5]), (VertexVar perimeter, [VertexMet m5, VertexMet m4]), (VertexMet m5, [VertexVar width2]), (VertexMet m1, [VertexVar area]), (VertexMet m2, [VertexVar perimeter]), (VertexMet m3, [VertexVar width2, VertexVar height2]), (VertexMet m4, [VertexVar height2])]
+mWidth :: Method
+mWidth = stars [(NodeMet "mWidth", [NodeVar "width"])]
 
-exampleGraph :: Graph VertexType
-exampleGraph = stars exampleAdjList
+mHeight :: Method
+mHeight = stars [(NodeMet "mHeight", [NodeVar "height"])]
 
-exampleGraph2 :: Graph VertexType
-exampleGraph2 = stars exampleAdjList2
+stayArea :: Constraint
+stayArea = Constraint [mArea]
+
+stayPerimeter :: Constraint
+stayPerimeter = Constraint [mPerimeter]
+
+stayWidth :: Constraint
+stayWidth = Constraint [mWidth]
+
+stayHeight :: Constraint
+stayHeight = Constraint [mHeight]
+

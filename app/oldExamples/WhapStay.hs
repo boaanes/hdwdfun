@@ -1,27 +1,6 @@
-module WhapStay
-    ( area
-    , constraintArea
-    , constraintPerimeter
-    , constraintStayArea
-    , constraintStayPerimeter
-    , constraints
-    , exampleGraph
-    , exampleGraph2
-    , height
-    , m1
-    , m2
-    , m4
-    , m5
-    , perimeter
-    , stayArea
-    , stayPerimeter
-    , width
-    ) where
+module WhapStay where
 
-import           Algebra.Graph
-import           HotDrink
-import           MethodParser
-
+{-
 width :: Variable
 width = ("width", Just 10)
 
@@ -99,3 +78,4 @@ exampleGraph = stars exampleAdjList
 
 exampleGraph2 :: Graph VertexType
 exampleGraph2 = stars exampleAdjList2
+-}

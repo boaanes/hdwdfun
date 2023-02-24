@@ -1,17 +1,6 @@
-module Temperature
-    ( c
-    , constraints
-    , exampleGraph
-    , exampleGraph2
-    , f
-    , m1
-    , m2
-    ) where
+module Temperature where
 
-import           Algebra.Graph
-import           HotDrink
-import           MethodParser
-
+{-
 c :: Variable
 c = ("c", Just (-40))
 
@@ -44,3 +33,4 @@ exampleGraph = stars exampleAdjList
 
 exampleGraph2 :: Graph VertexType
 exampleGraph2 = stars exampleAdjList2
+-}

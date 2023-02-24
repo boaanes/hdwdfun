@@ -1,9 +1,4 @@
-{-# LANGUAGE InstanceSigs #-}
 module MethodParser where
-
-import           Control.Applicative (Alternative (..))
-import           Data.Char           (isDigit, isLetter, isSpace)
-import           Data.List           (nub)
 
 data Expr
   = BinOp String Expr Expr
