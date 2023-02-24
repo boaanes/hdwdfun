@@ -2,6 +2,7 @@
 module NewImpl
     ( bestPlan
     , bitCombination
+    , getLabel
     , isValidSolution
     , methodsToEnforce
     , nCombinations
@@ -50,3 +51,7 @@ methodsToEnforce (Just (Constraint [x])) =
             _         -> True) es
         Left _   -> Nothing
 methodsToEnforce _ = Nothing
+
+getLabel :: NodeKind -> String
+getLabel (NodeVar x) = x
+getLabel (NodeMet x) = x
