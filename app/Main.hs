@@ -4,14 +4,11 @@ module Main where
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Data.Bits
-import           Data.Foldable                        (find)
+import           Data.Foldable                        (find, fold)
 import           HotDrink
 
 main :: IO ()
 main = return ()
-
-plan :: [Constraint] -> Constraint
-plan = foldl (\a b -> if a <> b == Constraint [] then a else a <> b) mempty
 
 nCombinations :: Int -> [Int]
 nCombinations n = reverse [0..2^n - 1]
@@ -24,17 +21,17 @@ bitCombination n (x:xs) =
     else bitCombination n xs
 
 partOf :: Constraint -> Constraint -> Bool
-partOf (Constraint methods) candidate = any (`isSubgraphOf` concatMethodsInConstriant candidate) methods
+partOf c = any (`isSubgraphOf` concatMethodsInConstraint c) . unConstraint
 
-isValidSolution :: [Constraint] -> Constraint -> Bool
-isValidSolution constraints candidate = all (`partOf` candidate) constraints
+isPartOfAllConstraints :: [Constraint] -> Constraint -> Bool
+isPartOfAllConstraints constraints candidate = all (partOf candidate) constraints
 
--- return first valid solution
-bestPlan :: [Constraint] -> [Constraint] -> Maybe Constraint
-bestPlan stayConstraints mustConstraints =
+-- return first (also best) valid solution
+plan :: [Constraint] -> [Constraint] -> Maybe Constraint
+plan stayConstraints mustConstraints =
     let combinations = map (`bitCombination` stayConstraints) $ nCombinations $ length stayConstraints
-        results = map (\x -> plan (x ++ mustConstraints)) combinations
-    in find (isValidSolution mustConstraints) results
+        results = map (fold . (++ mustConstraints)) combinations
+    in find (isPartOfAllConstraints mustConstraints) results
 
 
 methodsToEnforce :: Maybe Constraint -> Maybe [NodeKind]

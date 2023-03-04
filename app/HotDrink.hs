@@ -1,11 +1,10 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use newtype instead of data" #-}
 {-# LANGUAGE LambdaCase #-}
 module HotDrink
     ( Constraint (..)
     , Method
     , NodeKind (..)
-    , concatMethodsInConstriant
+    , concatMethodsInConstraint
     , methodUnion
     ) where
 
@@ -21,8 +20,8 @@ data NodeKind
 
 type Method = AdjacencyMap NodeKind
 
-data Constraint
-  = Constraint [Method]
+newtype Constraint
+  = Constraint { unConstraint :: [Method] }
   deriving (Eq, Show)
 
 methodUnion :: Method -> Method -> Maybe Method
@@ -43,8 +42,8 @@ instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
 
-concatMethodsInConstriant :: Constraint -> Method
-concatMethodsInConstriant (Constraint [])     = empty
-concatMethodsInConstriant (Constraint (a:as)) = a <> concatMethodsInConstriant (Constraint as)
+concatMethodsInConstraint :: Constraint -> Method
+concatMethodsInConstraint (Constraint [])     = empty
+concatMethodsInConstraint (Constraint (a:as)) = a <> concatMethodsInConstraint (Constraint as)
 
 
