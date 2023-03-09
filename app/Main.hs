@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+
 module Main where
 
 import           Algebra.Graph.AdjacencyMap
@@ -13,6 +14,7 @@ main = return ()
 nCombinations :: Int -> [Int]
 nCombinations n = reverse [0..2^n - 1]
 
+-- get all combinations of bits given n
 bitCombination :: Int -> [a] -> [a]
 bitCombination _ []     = []
 bitCombination n (x:xs) =
@@ -20,9 +22,11 @@ bitCombination n (x:xs) =
     then x : bitCombination n xs
     else bitCombination n xs
 
+-- check if constraint is part of another constraint (is subgraph)
 partOf :: Constraint -> Constraint -> Bool
-partOf c = any (`isSubgraphOf` concatMethodsInConstraint c) . unConstraint
+partOf c = any (`isSubgraphOf` (fold . unConstraint) c) . unConstraint
 
+-- check if all given constraints are part of another constraint
 isPartOfAllConstraints :: [Constraint] -> Constraint -> Bool
 isPartOfAllConstraints constraints candidate = all (partOf candidate) constraints
 
@@ -33,7 +37,7 @@ plan stayConstraints mustConstraints =
         results = map (fold . (++ mustConstraints)) combinations
     in find (isPartOfAllConstraints mustConstraints) results
 
-
+-- topsort and filter out variables to get methods to enforce
 methodsToEnforce :: Maybe Constraint -> Maybe [NodeKind]
 methodsToEnforce (Just (Constraint [x])) =
     case topSort x of
@@ -43,6 +47,3 @@ methodsToEnforce (Just (Constraint [x])) =
         Left _   -> Nothing
 methodsToEnforce _ = Nothing
 
-getLabel :: NodeKind -> String
-getLabel (NodeVar x) = x
-getLabel (NodeMet x) = x

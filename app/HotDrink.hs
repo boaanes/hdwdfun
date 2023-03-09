@@ -4,7 +4,6 @@ module HotDrink
     ( Constraint (..)
     , Method
     , NodeKind (..)
-    , concatMethodsInConstraint
     , methodUnion
     ) where
 
@@ -41,9 +40,4 @@ instance Semigroup Constraint where
 instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
-
-concatMethodsInConstraint :: Constraint -> Method
-concatMethodsInConstraint (Constraint [])     = empty
-concatMethodsInConstraint (Constraint (a:as)) = a <> concatMethodsInConstraint (Constraint as)
-
 

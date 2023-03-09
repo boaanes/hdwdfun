@@ -1,4 +1,8 @@
+{-# LANGUAGE InstanceSigs #-}
 module MethodParser where
+import           Control.Applicative
+import           Data.Char           (isDigit, isLetter, isSpace)
+import           Data.List           (nub)
 
 data Expr
   = BinOp String Expr Expr
@@ -7,7 +11,6 @@ data Expr
   | Lit Double
   deriving (Eq, Ord, Show)
 
-{-
 data Error i e
   = EndOfInput
   | Unexpected i
@@ -121,4 +124,3 @@ exprFactor = exprParen <|> exprLit <|> exprVar
 
 expr :: (Eq e) => Parser Char e Expr
 expr = exprAddSub <|> exprTerm
--}
