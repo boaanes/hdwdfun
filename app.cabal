@@ -44,6 +44,8 @@ executable app-exe
       GraphHelpers
       HotDrink
       MethodParser
+      WarmDrink
+      Conf
       Resize
       Whap
       Paths_app

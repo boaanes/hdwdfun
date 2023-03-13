@@ -15,19 +15,19 @@ import           Algebra.Graph.AdjacencyMap
 import           HotDrink
 
 m1 :: Method
-m1 = stars [(NodeMet "m1", [NodeVar "area"]), (NodeVar "width", [NodeMet "m1"]), (NodeVar "height", [NodeMet "m1"])]
+m1 = stars [(VertexMet "m1", [VertexVar "area"]), (VertexVar "width", [VertexMet "m1"]), (VertexVar "height", [VertexMet "m1"])]
 
 m2 :: Method
-m2 = stars [(NodeMet "m2", [NodeVar "perimeter"]), (NodeVar "width", [NodeMet "m2"]), (NodeVar "height", [NodeMet "m2"])]
+m2 = stars [(VertexMet "m2", [VertexVar "perimeter"]), (VertexVar "width", [VertexMet "m2"]), (VertexVar "height", [VertexMet "m2"])]
 
 m3 :: Method
-m3 = stars [(NodeMet "m3", [NodeVar "height", NodeVar "width"]), (NodeVar "area", [NodeMet "m3"])]
+m3 = stars [(VertexMet "m3", [VertexVar "height", VertexVar "width"]), (VertexVar "area", [VertexMet "m3"])]
 
 m4 :: Method
-m4 = stars [(NodeMet "m4", [NodeVar "height"]), (NodeVar "perimeter", [NodeMet "m4"]), (NodeVar "width", [NodeMet "m4"])]
+m4 = stars [(VertexMet "m4", [VertexVar "height"]), (VertexVar "perimeter", [VertexMet "m4"]), (VertexVar "width", [VertexMet "m4"])]
 
 m5 :: Method
-m5 = stars [(NodeMet "m5", [NodeVar "width"]), (NodeVar "perimeter", [NodeMet "m5"]), (NodeVar "height", [NodeMet "m5"])]
+m5 = stars [(VertexMet "m5", [VertexVar "width"]), (VertexVar "perimeter", [VertexMet "m5"]), (VertexVar "height", [VertexMet "m5"])]
 
 constraintA :: Constraint
 constraintA = Constraint [m1, m3]
@@ -36,16 +36,16 @@ constraintB :: Constraint
 constraintB = Constraint [m2, m4, m5]
 
 mArea :: Method
-mArea = stars [(NodeMet "mArea", [NodeVar "area"])]
+mArea = stars [(VertexMet "mArea", [VertexVar "area"])]
 
 mPerimeter :: Method
-mPerimeter = stars [(NodeMet "mPerimeter", [NodeVar "perimeter"])]
+mPerimeter = stars [(VertexMet "mPerimeter", [VertexVar "perimeter"])]
 
 mWidth :: Method
-mWidth = stars [(NodeMet "mWidth", [NodeVar "width"])]
+mWidth = stars [(VertexMet "mWidth", [VertexVar "width"])]
 
 mHeight :: Method
-mHeight = stars [(NodeMet "mHeight", [NodeVar "height"])]
+mHeight = stars [(VertexMet "mHeight", [VertexVar "height"])]
 
 stayArea :: Constraint
 stayArea = Constraint [mArea]

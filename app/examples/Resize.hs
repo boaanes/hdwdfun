@@ -25,48 +25,48 @@ import           Algebra.Graph.AdjacencyMap
 import           HotDrink
 
 h1 :: Method
-h1 = stars [(NodeMet "h1", [NodeVar "rh"]), (NodeVar "ih", [NodeMet "h1"]), (NodeVar "ah", [NodeMet "h1"])]
+h1 = stars [(VertexMet "h1", [VertexVar "rh"]), (VertexVar "ih", [VertexMet "h1"]), (VertexVar "ah", [VertexMet "h1"])]
 
 h2 :: Method
-h2 = stars [(NodeMet "h2", [NodeVar "ah"]), (NodeVar "ih", [NodeMet "h2"]), (NodeVar "rh", [NodeMet "h2"])]
+h2 = stars [(VertexMet "h2", [VertexVar "ah"]), (VertexVar "ih", [VertexMet "h2"]), (VertexVar "rh", [VertexMet "h2"])]
 
 r1 :: Method
-r1 = stars [(NodeMet "r1", [NodeVar "aw"]), (NodeVar "ah", [NodeMet "r1"]), (NodeVar "r", [NodeMet "r1"])]
+r1 = stars [(VertexMet "r1", [VertexVar "aw"]), (VertexVar "ah", [VertexMet "r1"]), (VertexVar "r", [VertexMet "r1"])]
 
 r2 :: Method
-r2 = stars [(NodeMet "r2", [NodeVar "ah"]), (NodeVar "r", [NodeMet "r2"]), (NodeVar "aw", [NodeMet "r2"])]
+r2 = stars [(VertexMet "r2", [VertexVar "ah"]), (VertexVar "r", [VertexMet "r2"]), (VertexVar "aw", [VertexMet "r2"])]
 
 r3 :: Method
-r3 = stars [(NodeMet "r3", [NodeVar "r"]), (NodeVar "aw", [NodeMet "r3"]), (NodeVar "ah", [NodeMet "r3"])]
+r3 = stars [(VertexMet "r3", [VertexVar "r"]), (VertexVar "aw", [VertexMet "r3"]), (VertexVar "ah", [VertexMet "r3"])]
 
 w1 :: Method
-w1 = stars [(NodeMet "w1", [NodeVar "rw"]), (NodeVar "iw", [NodeMet "w1"]), (NodeVar "aw", [NodeMet "w1"])]
+w1 = stars [(VertexMet "w1", [VertexVar "rw"]), (VertexVar "iw", [VertexMet "w1"]), (VertexVar "aw", [VertexMet "w1"])]
 
 w2 :: Method
-w2 = stars [(NodeMet "w2", [NodeVar "aw"]), (NodeVar "iw", [NodeMet "w2"]), (NodeVar "rw", [NodeMet "w2"])]
+w2 = stars [(VertexMet "w2", [VertexVar "aw"]), (VertexVar "iw", [VertexMet "w2"]), (VertexVar "rw", [VertexMet "w2"])]
 
 
 
 mih :: Method
-mih = stars [(NodeMet "mih", [NodeVar "ih"])]
+mih = stars [(VertexMet "mih", [VertexVar "ih"])]
 
 mrh :: Method
-mrh = stars [(NodeMet "mrh", [NodeVar "rh"])]
+mrh = stars [(VertexMet "mrh", [VertexVar "rh"])]
 
 mah :: Method
-mah = stars [(NodeMet "mah", [NodeVar "ah"])]
+mah = stars [(VertexMet "mah", [VertexVar "ah"])]
 
 mr :: Method
-mr = stars [(NodeMet "mr", [NodeVar "r"])]
+mr = stars [(VertexMet "mr", [VertexVar "r"])]
 
 maw :: Method
-maw = stars [(NodeMet "maw", [NodeVar "aw"])]
+maw = stars [(VertexMet "maw", [VertexVar "aw"])]
 
 mrw :: Method
-mrw = stars [(NodeMet "mrw", [NodeVar "rw"])]
+mrw = stars [(VertexMet "mrw", [VertexVar "rw"])]
 
 miw :: Method
-miw = stars [(NodeMet "miw", [NodeVar "iw"])]
+miw = stars [(VertexMet "miw", [VertexVar "iw"])]
 
 stayIh :: Constraint
 stayIh = Constraint [mih]

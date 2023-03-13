@@ -3,7 +3,7 @@
 module HotDrink
     ( Constraint (..)
     , Method
-    , NodeKind (..)
+    , VertexType (..)
     , methodUnion
     ) where
 
@@ -12,12 +12,12 @@ import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
 
-data NodeKind
-  = NodeVar String
-  | NodeMet String
+data VertexType
+  = VertexVar String
+  | VertexMet String
   deriving (Eq, Ord, Show)
 
-type Method = AdjacencyMap NodeKind
+type Method = AdjacencyMap VertexType
 
 newtype Constraint
   = Constraint { unConstraint :: [Method] }
@@ -28,8 +28,8 @@ methodUnion g1 g2 =
   let g = overlay g1 g2
   in if all ((<= 1) . length . (`inboundVertices` g))
     (filter (\case
-      (NodeVar _) -> True
-      (NodeMet _) -> False) (vertexList g)) &&
+      (VertexVar _) -> True
+      (VertexMet _) -> False) (vertexList g)) &&
       isAcyclic g
     then Just g
     else Nothing
