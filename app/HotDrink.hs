@@ -10,7 +10,6 @@ module HotDrink
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
-import           Debug.Trace                          (trace)
 import           GraphHelpers
 
 data VertexType
@@ -27,7 +26,7 @@ newtype Constraint
 methodUnion :: Method -> Method -> Maybe Method
 methodUnion g1 g2 =
   let g = overlay g1 g2
-  in trace (show g1 ++ show g2) (if all ((<= 1) . length . (`inboundVertices` g))
+  in (if all ((<= 1) . length . (`inboundVertices` g))
     (filter (\case
       (VertexVar _) -> True
       (VertexMet _) -> False) (vertexList g)) &&
