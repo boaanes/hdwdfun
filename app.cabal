@@ -47,6 +47,7 @@ executable app-exe
       WarmDrink
       Conf
       Resize
+      Tax
       Whap
       Paths_app
   hs-source-dirs:
