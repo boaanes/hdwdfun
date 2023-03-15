@@ -6,6 +6,7 @@ import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Data.Bits
 import           Data.Foldable                        (find, fold)
+import           Debug.Trace                          (trace)
 import           HotDrink
 
 main :: IO ()
@@ -37,13 +38,19 @@ plan stayConstraints mustConstraints =
         results = map (fold . (++ mustConstraints)) combinations
     in find (isPartOfAllConstraints mustConstraints) results
 
+plan' :: [Constraint] -> [Constraint] -> Int -> Maybe Constraint
+plan' stayConstraints mustConstraints n =
+    let combination = bitCombination n stayConstraints
+        result = (fold . (++ mustConstraints)) combination
+    in trace (show n) (if isPartOfAllConstraints mustConstraints result then Just result else plan' stayConstraints mustConstraints (n-1))
+
 -- topsort and filter out variables to get methods to enforce
 methodsToEnforce :: Maybe Constraint -> Maybe [VertexType]
 methodsToEnforce (Just (Constraint [x])) =
     case topSort x of
         Right es -> Just $ filter (\case
             VertexVar _ -> False
-            _         -> True) es
+            _           -> True) es
         Left _   -> Nothing
 methodsToEnforce _ = Nothing
 

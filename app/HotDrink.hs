@@ -10,6 +10,7 @@ module HotDrink
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
+import           Debug.Trace                          (trace)
 import           GraphHelpers
 
 data VertexType
@@ -26,13 +27,13 @@ newtype Constraint
 methodUnion :: Method -> Method -> Maybe Method
 methodUnion g1 g2 =
   let g = overlay g1 g2
-  in if all ((<= 1) . length . (`inboundVertices` g))
+  in trace (show g1 ++ show g2) (if all ((<= 1) . length . (`inboundVertices` g))
     (filter (\case
       (VertexVar _) -> True
       (VertexMet _) -> False) (vertexList g)) &&
       isAcyclic g
     then Just g
-    else Nothing
+    else Nothing)
 
 instance Semigroup Constraint where
   Constraint as <> Constraint bs = Constraint $ catMaybes [methodUnion a b | a <- as, b <- bs]
