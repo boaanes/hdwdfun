@@ -7,8 +7,7 @@ import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Control.Monad.IO.Class               (liftIO)
 import           Data.Bits
-import           Data.Foldable                        (fold, foldl')
-import           Debug.Trace                          (trace)
+import           Data.Foldable                        (fold)
 import           HotDrink
 import qualified Tax
 import qualified Data.Time.Clock as Clock
@@ -33,20 +32,17 @@ partOf c = any (`isSubgraphOf` (fold . unConstraint) c) . unConstraint
 isPartOfAllConstraints :: [Constraint] -> Constraint -> Bool
 isPartOfAllConstraints constraints candidate = all (partOf candidate) constraints
 
-f :: Constraint -> [Constraint] -> Constraint
-f (Constraint []) _ = Constraint []
-f acc []            = acc
-f acc (x:xs)        = f (acc <> x) xs
-
-foldPlan :: [Constraint] -> Constraint
-foldPlan = foldl' (\a b -> let res = a <> b
-                    in if res == Constraint [] then a else res) mempty
+-- custom fold for constructing candidate plan
+foldPlan :: Constraint -> [Constraint] -> Constraint
+foldPlan (Constraint []) _ = Constraint []
+foldPlan acc []            = acc
+foldPlan acc (x:xs)        = foldPlan (acc <> x) xs
 
 plan' :: [Constraint] -> [Constraint] -> Int -> Maybe Constraint
+plan' _ _ 0 = Nothing
 plan' stayConstraints mustConstraints n =
     let combination = bitCombination n stayConstraints
-        constraints = combination ++ mustConstraints
-        result = trace (show n) (f (head constraints) (tail constraints))
+        result = (foldPlan (head combination) . (++ mustConstraints)) (drop 1 combination)
     in (if isPartOfAllConstraints mustConstraints result then Just result else plan' stayConstraints mustConstraints (n-1))
 
 plan :: [Constraint] -> [Constraint] -> Maybe Constraint
