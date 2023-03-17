@@ -11,6 +11,7 @@ import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
+import           Debug.Trace                          (trace)
 
 data VertexType
   = VertexVar String
@@ -26,13 +27,13 @@ newtype Constraint
 methodUnion :: Method -> Method -> Maybe Method
 methodUnion g1 g2 =
   let g = overlay g1 g2
-  in (if all ((<= 1) . length . (`inboundVertices` g))
-    (filter (\case
-      (VertexVar _) -> True
-      (VertexMet _) -> False) (vertexList g)) &&
-      isAcyclic g
+      maxInDegree1 = all ((<= 1) . length . (`inboundVertices` g))
+        (filter (\case
+          (VertexVar _) -> True
+          (VertexMet _) -> False) (vertexList g))
+  in if maxInDegree1 && isAcyclic g
     then Just g
-    else Nothing)
+    else Nothing
 
 instance Semigroup Constraint where
   Constraint as <> Constraint bs = Constraint $ catMaybes [methodUnion a b | a <- as, b <- bs]

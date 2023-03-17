@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
@@ -10,6 +11,8 @@ import           Data.Foldable                        (fold, foldl')
 import           Debug.Trace                          (trace)
 import           HotDrink
 import qualified Tax
+import qualified Data.Time.Clock as Clock
+import qualified PrettyPrinter
 
 nCombinations :: Int -> [Int]
 nCombinations n = reverse [0..2^n - 1]
@@ -42,11 +45,20 @@ foldPlan = foldl' (\a b -> let res = a <> b
 plan' :: [Constraint] -> [Constraint] -> Int -> Maybe Constraint
 plan' stayConstraints mustConstraints n =
     let combination = bitCombination n stayConstraints
-        result = (fold . (++ mustConstraints)) combination
+        constraints = combination ++ mustConstraints
+        result = trace (show n) (f (head constraints) (tail constraints))
     in (if isPartOfAllConstraints mustConstraints result then Just result else plan' stayConstraints mustConstraints (n-1))
 
 plan :: [Constraint] -> [Constraint] -> Maybe Constraint
 plan stayConstraints mustConstraints = plan' stayConstraints mustConstraints $ 2 ^ length stayConstraints - 1
+
+planTest :: [Constraint] -> Constraint -> Constraint
+planTest [] c = c
+planTest (x:xs) c =
+    let cAndX@(Constraint cx) = c <> x
+    in if null cx
+        then planTest xs c
+        else planTest xs cAndX
 
 -- topsort and filter out variables to get methods to enforce
 methodsToEnforce :: Maybe Constraint -> Maybe [VertexType]
@@ -58,11 +70,28 @@ methodsToEnforce (Just (Constraint [x])) =
         Left _   -> Nothing
 methodsToEnforce _ = Nothing
 
+test2 = Main.planTest
+    -- stay constraints in priority order
+    [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15]
+    -- must constraints
+    (mconcat [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7])
+
 -- just an example
 main :: IO ()
 main = do
-    let result = plan' [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15] [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7] 32767
-    liftIO $ print result
-    liftIO $ print $ methodsToEnforce result
+    -- let result = plan' [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15] [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7] 32767
+    -- liftIO $ print result
+    -- liftIO $ print $ methodsToEnforce result
+    start2 <- Clock.getCurrentTime
+    print $ length $ unConstraint (mconcat [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7])
+    end2 <- Clock.getCurrentTime
+    print (Clock.diffUTCTime end2 start2)
+
+    start <- Clock.getCurrentTime
+    putStrLn "Result:"
+    putStrLn $ PrettyPrinter.prettyPrintConstraint test2
+    end <- Clock.getCurrentTime
+    print (Clock.diffUTCTime end start)
+
 
 
