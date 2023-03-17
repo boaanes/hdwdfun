@@ -1,17 +1,15 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
-import           Control.Monad.IO.Class               (liftIO)
 import           Data.Bits
 import           Data.Foldable                        (fold)
+import qualified Data.Time.Clock                      as Clock
 import           HotDrink
-import qualified Tax
-import qualified Data.Time.Clock as Clock
 import qualified PrettyPrinter
+import qualified Tax
 
 nCombinations :: Int -> [Int]
 nCombinations n = reverse [0..2^n - 1]
@@ -32,33 +30,17 @@ partOf c = any (`isSubgraphOf` (fold . unConstraint) c) . unConstraint
 isPartOfAllConstraints :: [Constraint] -> Constraint -> Bool
 isPartOfAllConstraints constraints candidate = all (partOf candidate) constraints
 
--- custom fold for constructing candidate plan
-foldPlan :: Constraint -> [Constraint] -> Constraint
-foldPlan (Constraint []) _ = Constraint []
-foldPlan acc []            = acc
-foldPlan acc (x:xs)        = foldPlan (acc <> x) xs
-
-plan' :: [Constraint] -> [Constraint] -> Int -> Maybe Constraint
-plan' _ _ 0 = Nothing
-plan' stayConstraints mustConstraints n =
-    let combination = bitCombination n stayConstraints
-        result = (foldPlan (head combination) . (++ mustConstraints)) (drop 1 combination)
-    in (if isPartOfAllConstraints mustConstraints result then Just result else plan' stayConstraints mustConstraints (n-1))
-
-plan :: [Constraint] -> [Constraint] -> Maybe Constraint
-plan stayConstraints mustConstraints = plan' stayConstraints mustConstraints $ 2 ^ length stayConstraints - 1
-
-planTest :: [Constraint] -> Constraint -> Constraint
-planTest [] c = c
-planTest (x:xs) c =
+plan :: [Constraint] -> Constraint -> Constraint
+plan [] c = c
+plan (x:xs) c =
     let cAndX@(Constraint cx) = c <> x
     in if null cx
-        then planTest xs c
-        else planTest xs cAndX
+        then plan xs c
+        else plan xs cAndX
 
 -- topsort and filter out variables to get methods to enforce
-methodsToEnforce :: Maybe Constraint -> Maybe [VertexType]
-methodsToEnforce (Just (Constraint [x])) =
+methodsToEnforce :: Constraint -> Maybe [VertexType]
+methodsToEnforce (Constraint [x]) =
     case topSort x of
         Right es -> Just $ filter (\case
             VertexVar _ -> False
@@ -66,7 +48,8 @@ methodsToEnforce (Just (Constraint [x])) =
         Left _   -> Nothing
 methodsToEnforce _ = Nothing
 
-test2 = Main.planTest
+test2 :: Constraint
+test2 = plan
     -- stay constraints in priority order
     [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15]
     -- must constraints
@@ -75,9 +58,6 @@ test2 = Main.planTest
 -- just an example
 main :: IO ()
 main = do
-    -- let result = plan' [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15] [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7] 32767
-    -- liftIO $ print result
-    -- liftIO $ print $ methodsToEnforce result
     start2 <- Clock.getCurrentTime
     print $ length $ unConstraint (mconcat [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7])
     end2 <- Clock.getCurrentTime

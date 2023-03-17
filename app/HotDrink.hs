@@ -4,6 +4,7 @@ module HotDrink
     ( Constraint (..)
     , Method
     , VertexType (..)
+    , getLabel
     , methodUnion
     ) where
 
@@ -11,7 +12,6 @@ import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
-import           Debug.Trace                          (trace)
 
 data VertexType
   = VertexVar String
@@ -42,3 +42,7 @@ instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
 
+
+getLabel :: VertexType -> String
+getLabel (VertexVar x) = x
+getLabel (VertexMet x) = x
