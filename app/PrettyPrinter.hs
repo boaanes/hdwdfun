@@ -1,9 +1,9 @@
 module PrettyPrinter where
 
-import qualified HotDrink as HD
 import qualified Algebra.Graph.AdjacencyMap as Adj
-import Data.List (intercalate)
-import qualified Data.Set as Set
+import           Data.List                  (intercalate)
+import qualified Data.Set                   as Set
+import qualified HotDrink                   as HD
 
 prettyPrintConstraint :: HD.Constraint -> String
 prettyPrintConstraint (HD.Constraint methodGraphs)

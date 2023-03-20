@@ -49,6 +49,7 @@ executable app-exe
       PrettyPrinter
       WarmDrink
       Conf
+      Geometry
       Resize
       Tax
       Whap

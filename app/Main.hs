@@ -7,6 +7,7 @@ import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Data.Bits
 import           Data.Foldable                        (fold)
 import qualified Data.Time.Clock                      as Clock
+import qualified Geometry
 import           HotDrink
 import qualified PrettyPrinter
 import qualified Tax
@@ -54,6 +55,9 @@ test2 = plan
     [Tax.stayX2, Tax.stayX5, Tax.stayX1, Tax.stayX6, Tax.stayX9, Tax.stayX3, Tax.stayX4, Tax.stayX8, Tax.stayX7, Tax.stayX10, Tax.stayX11, Tax.stayX12, Tax.stayX13, Tax.stayX14, Tax.stayX15]
     -- must constraints
     (mconcat [Tax.constraint1, Tax.constraint2, Tax.constraint3, Tax.constraint4, Tax.constraint5, Tax.constraint6, Tax.constraint7])
+
+planGeometry :: Maybe [VertexType]
+planGeometry = methodsToEnforce $ plan [Geometry.stayrx, Geometry.stayry, Geometry.stayra, Geometry.stayrp, Geometry.stayc1r, Geometry.stayc1a, Geometry.stayc1p, Geometry.stayc2a, Geometry.stayc2p, Geometry.stayc2r] (mconcat [Geometry.c1, Geometry.c2, Geometry.c3, Geometry.c4, Geometry.c5])
 
 -- just an example
 main :: IO ()
