@@ -41,12 +41,9 @@ plan (x:xs) c =
 
 -- topsort and filter out variables to get methods to enforce
 methodsToEnforce :: Constraint -> Maybe [VertexType]
-methodsToEnforce (Constraint [x]) =
-    case topSort x of
-        Right es -> Just $ filter (\case
-            VertexVar _ -> False
-            _           -> True) es
-        Left _   -> Nothing
+methodsToEnforce (Constraint [x]) = case topSort x of
+    Right es -> Just $ filter (\case VertexVar _ -> False; _ -> True) es
+    Left _   -> Nothing
 methodsToEnforce _ = Nothing
 
 test2 :: Constraint
