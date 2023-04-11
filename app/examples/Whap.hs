@@ -2,50 +2,92 @@ module Whap
     ( constraintA
     , constraintB
     , m1
+    , m1Graph
     , m2
+    , m2Graph
     , m3
+    , m3Graph
     , m4
+    , m4Graph
     , m5
+    , m5Graph
+    , mArea
+    , mHeight
+    , mPerimeter
+    , mWidth
     , stayArea
     , stayHeight
     , stayPerimeter
     , stayWidth
+    , vArea
+    , vHeight
+    , vPerimeter
+    , vWidth
     ) where
 import           Algebra.Graph.AdjacencyMap
 import           HotDrink
+import           MethodParser
+
 
 m1 :: Method
-m1 = stars [(VertexMet "m1", [VertexVar "area"]), (VertexVar "width", [VertexMet "m1"]), (VertexVar "height", [VertexMet "m1"])]
+m1 = ("m1", [("area", BinOp "*" (Var "width") (Var "height"))])
 
 m2 :: Method
-m2 = stars [(VertexMet "m2", [VertexVar "perimeter"]), (VertexVar "width", [VertexMet "m2"]), (VertexVar "height", [VertexMet "m2"])]
+m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
 
 m3 :: Method
-m3 = stars [(VertexMet "m3", [VertexVar "height", VertexVar "width"]), (VertexVar "area", [VertexMet "m3"])]
+m3 = ("m3", [("height", Sqrt (Var "area")), ("width", Sqrt (Var "area"))])
 
 m4 :: Method
-m4 = stars [(VertexMet "m4", [VertexVar "height"]), (VertexVar "perimeter", [VertexMet "m4"]), (VertexVar "width", [VertexMet "m4"])]
+m4 = ("m4", [("height", BinOp "-" (Var "width") (BinOp "/" (Var "perimeter") (Lit 2)))])
 
 m5 :: Method
-m5 = stars [(VertexMet "m5", [VertexVar "width"]), (VertexVar "perimeter", [VertexMet "m5"]), (VertexVar "height", [VertexMet "m5"])]
+m5 = ("m5", [("width", BinOp "-" (Var "height") (BinOp "/" (Var "perimeter") (Lit 2)))])
+
+vArea :: Variable
+vArea = ("area", Just 100)
+
+vPerimeter :: Variable
+vPerimeter = ("perimeter", Just 40)
+
+vWidth :: Variable
+vWidth = ("width", Just 10)
+
+vHeight :: Variable
+vHeight = ("height", Just 10)
+
+m1Graph :: MethodGraph
+m1Graph = stars [(VertexMet m1, [VertexVar vArea]), (VertexVar vWidth, [VertexMet m1]), (VertexVar vHeight, [VertexMet m1])]
+
+m2Graph :: MethodGraph
+m2Graph = stars [(VertexMet m2, [VertexVar vPerimeter]), (VertexVar vWidth, [VertexMet m2]), (VertexVar vHeight, [VertexMet m2])]
+
+m3Graph :: MethodGraph
+m3Graph = stars [(VertexMet m3, [VertexVar vHeight, VertexVar vWidth]), (VertexVar vArea, [VertexMet m3])]
+
+m4Graph :: MethodGraph
+m4Graph = stars [(VertexMet m4, [VertexVar vHeight]), (VertexVar vPerimeter, [VertexMet m4]), (VertexVar vWidth, [VertexMet m4])]
+
+m5Graph :: MethodGraph
+m5Graph = stars [(VertexMet m5, [VertexVar vWidth]), (VertexVar vPerimeter, [VertexMet m5]), (VertexVar vHeight, [VertexMet m5])]
 
 constraintA :: Constraint
-constraintA = Constraint [m1, m3]
+constraintA = Constraint [m1Graph, m3Graph]
 
 constraintB :: Constraint
-constraintB = Constraint [m2, m4, m5]
+constraintB = Constraint [m2Graph, m4Graph, m5Graph]
 
-mArea :: Method
-mArea = stars [(VertexMet "mArea", [VertexVar "area"])]
+mArea :: MethodGraph
+mArea = stars [(VertexMet ("mArea", [("area", Var "area")]), [VertexVar vArea])]
 
-mPerimeter :: Method
-mPerimeter = stars [(VertexMet "mPerimeter", [VertexVar "perimeter"])]
+mPerimeter :: MethodGraph
+mPerimeter = stars [(VertexMet ("mPerimeter", [("perimeter", Var "perimeter")]), [VertexVar vPerimeter])]
 
-mWidth :: Method
-mWidth = stars [(VertexMet "mWidth", [VertexVar "width"])]
+mWidth :: MethodGraph
+mWidth = stars [(VertexMet ("mWidth", [("width", Var "width")]), [VertexVar vWidth])]
 
-mHeight :: Method
-mHeight = stars [(VertexMet "mHeight", [VertexVar "height"])]
+mHeight :: MethodGraph
+mHeight = stars [(VertexMet ("mHeight", [("height", Var "height")]), [VertexVar vHeight])]
 
 stayArea :: Constraint
 stayArea = Constraint [mArea]
@@ -58,4 +100,3 @@ stayWidth = Constraint [mWidth]
 
 stayHeight :: Constraint
 stayHeight = Constraint [mHeight]
-
