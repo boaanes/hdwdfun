@@ -3,6 +3,8 @@
 module HotDrink
     ( Constraint (..)
     , Method
+    , MethodGraph
+    , Variable
     , VertexType (..)
     , getLabel
     , methodUnion
@@ -12,19 +14,23 @@ import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
+import           MethodParser
+
+type Variable = (String, Maybe Double)
+type Method = (String, [(String, Expr)])
 
 data VertexType
-  = VertexVar String
-  | VertexMet String
+  = VertexVar Variable
+  | VertexMet Method
   deriving (Eq, Ord, Show)
 
-type Method = AdjacencyMap VertexType
+type MethodGraph = AdjacencyMap VertexType
 
 newtype Constraint
-  = Constraint { unConstraint :: [Method] }
+  = Constraint { unConstraint :: [MethodGraph] }
   deriving (Eq, Show)
 
-methodUnion :: Method -> Method -> Maybe Method
+methodUnion :: MethodGraph -> MethodGraph -> Maybe MethodGraph
 methodUnion g1 g2 =
   let g = overlay g1 g2
       maxInDegree1 = all ((<= 1) . length . (`inboundVertices` g))
@@ -42,7 +48,6 @@ instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
 
-
 getLabel :: VertexType -> String
-getLabel (VertexVar x) = x
-getLabel (VertexMet x) = x
+getLabel (VertexVar (s, _)) = s
+getLabel (VertexMet (s, _)) = s

@@ -25,6 +25,7 @@ dependencies:
 - parsec
 - containers
 - time
+- mtl
 
 ghc-options:
 - -Wall

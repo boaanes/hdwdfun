@@ -1,19 +1,17 @@
 module Evaluator where
 
--- TODO: fix this for new implementation
-{-
-eval :: Graph VertexType -> Expr -> Double
-eval g (BinOp "+" a b) = eval g a + eval g b
-eval g (BinOp "-" a b) = eval g a - eval g b
-eval g (BinOp "*" a b) = eval g a * eval g b
-eval g (BinOp "/" a b) = eval g a / eval g b
+import           HotDrink
+import           MethodParser
+
+eval :: [Variable] -> Expr -> Double
+eval vs (BinOp "+" a b) = eval vs a + eval vs b
+eval vs (BinOp "-" a b) = eval vs a - eval vs b
+eval vs (BinOp "*" a b) = eval vs a * eval vs b
+eval vs (BinOp "/" a b) = eval vs a / eval vs b
 eval _ (BinOp {})      = error "Operator not supported"
-eval g (Sqrt e)      = sqrt $ eval g e
-eval g (Var x)       =
-  case lookupLabel x g of
-    Just (VertexVar (_, Just v))  -> v
-    Just (VertexVar (_, Nothing)) -> error "Variable not set"
-    Just (VertexMet _)            -> error "Identifier is a method"
-    Nothing                       -> error "Variable not found"
+eval vs (Sqrt e)      = sqrt $ eval vs e
+eval vs (Var x)       =
+    case lookup x vs of
+        Just (Just v) -> v
+        _             -> error $ "Variable " <> x <> " not found"
 eval _ (Lit x)       = x
--}
