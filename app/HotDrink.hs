@@ -1,17 +1,24 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE TupleSections #-}
 module HotDrink
     ( Constraint (..)
     , Method
     , MethodGraph
     , Variable
     , VertexType (..)
+    , addVariable
     , getLabel
+    , getVariable
+    , getVariables
     , methodUnion
+    , removeVariable
+    , setVariable
     ) where
 
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
+import           Control.Monad.State
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
 import           MethodParser
@@ -51,3 +58,25 @@ instance Monoid Constraint where
 getLabel :: VertexType -> String
 getLabel (VertexVar (s, _)) = s
 getLabel (VertexMet (s, _)) = s
+
+type VariableState = [Variable]
+type VariableMonad = State VariableState
+
+addVariable :: Variable -> VariableMonad ()
+addVariable v = modify (v :)
+
+removeVariable :: String -> VariableMonad ()
+removeVariable s = modify (filter (\(s', _) -> s /= s'))
+
+getVariables :: VariableMonad [Variable]
+getVariables = get
+
+getVariable :: String -> VariableMonad (Maybe Variable)
+getVariable s = do
+    gets (fmap (s,) . lookup s) -- some magic right here
+
+setVariable :: String -> Double -> VariableMonad ()
+setVariable s d = do
+    vs <- get
+    let vs' = filter (\(s', _) -> s /= s') vs
+    put ((s, Just d) : vs')

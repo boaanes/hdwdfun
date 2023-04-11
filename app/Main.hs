@@ -50,4 +50,5 @@ getVariables (Constraint [x]) =
 getVariables _ = error "not a single constraint"
 
 main :: IO ()
-main = putStrLn "hello"
+main = do
+    let initialState = [("area", Just 100), ("perimeter", Just 40), ("width", Just 10), ("height", Just 10)]
