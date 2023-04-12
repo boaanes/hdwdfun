@@ -43,10 +43,12 @@ library
 executable app-exe
   main-is: Main.hs
   other-modules:
+      Algs
       GraphHelpers
       HotDrink
       MethodParser
       PrettyPrinter
+      UserInput
       WarmDrink
       Conf
       Whap
