@@ -59,17 +59,21 @@ getLabel :: VertexType -> String
 getLabel (VertexVar (s, _)) = s
 getLabel (VertexMet (s, _)) = s
 
+eval :: [Variable] -> Expr -> Double
+eval vs (BinOp "+" a b) = eval vs a + eval vs b
+eval vs (BinOp "-" a b) = eval vs a - eval vs b
+eval vs (BinOp "*" a b) = eval vs a * eval vs b
+eval vs (BinOp "/" a b) = eval vs a / eval vs b
+eval _ (BinOp {})      = error "Operator not supported"
+eval vs (Sqrt e)      = sqrt $ eval vs e
+eval vs (Var x)       =
+    case lookup x vs of
+        Just (Just v) -> v
+        _             -> error $ "Variable " <> x <> " not found"
+eval _ (Lit x)       = x
+
+type Variable = (String, Maybe Double)
 type VariableState = [Variable]
-type VariableMonad = State VariableState
-
-addVariable :: Variable -> VariableMonad ()
-addVariable v = modify (v :)
-
-removeVariable :: String -> VariableMonad ()
-removeVariable s = modify (filter (\(s', _) -> s /= s'))
-
-getVariables :: VariableMonad [Variable]
-getVariables = get
 
 getVariable :: String -> VariableMonad (Maybe Variable)
 getVariable s = do

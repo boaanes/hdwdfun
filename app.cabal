@@ -43,7 +43,6 @@ library
 executable app-exe
   main-is: Main.hs
   other-modules:
-      Evaluator
       GraphHelpers
       HotDrink
       MethodParser
