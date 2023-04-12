@@ -4,4 +4,4 @@ module Main
 import           UserInput
 
 main :: IO ()
-main = userInput "start"
+main = userInput Init
