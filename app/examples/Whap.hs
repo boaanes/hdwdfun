@@ -44,17 +44,17 @@ m4 = ("m4", [("height", BinOp "-" (Var "width") (BinOp "/" (Var "perimeter") (Li
 m5 :: Method
 m5 = ("m5", [("width", BinOp "-" (Var "height") (BinOp "/" (Var "perimeter") (Lit 2)))])
 
-vArea :: Variable
-vArea = ("area", Just 100)
+vArea :: String
+vArea = "area"
 
-vPerimeter :: Variable
-vPerimeter = ("perimeter", Just 40)
+vPerimeter :: String
+vPerimeter = "perimeter"
 
-vWidth :: Variable
-vWidth = ("width", Just 10)
+vWidth :: String
+vWidth = "width"
 
-vHeight :: Variable
-vHeight = ("height", Just 10)
+vHeight :: String
+vHeight = "height"
 
 m1Graph :: MethodGraph
 m1Graph = stars [(VertexMet m1, [VertexVar vArea]), (VertexVar vWidth, [VertexMet m1]), (VertexVar vHeight, [VertexMet m1])]

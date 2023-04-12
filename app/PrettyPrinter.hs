@@ -22,7 +22,7 @@ prettyPrintMethod methodGraph m =
 
 showVertex :: HD.VertexType -> String
 showVertex (HD.VertexMet (s, _)) = s
-showVertex (HD.VertexVar (s, v)) = s <> " = " <> show v
+showVertex (HD.VertexVar s)      = s
 
 showEdge :: [String] -> String -> [String] -> String
 showEdge ins m outs = "[" <> intercalate "," ins <> "] -> " <> m <> " -> [" <> intercalate "," outs <> "]"

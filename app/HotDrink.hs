@@ -1,19 +1,16 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
+
 module HotDrink
     ( Constraint (..)
     , Method
     , MethodGraph
     , Variable
     , VertexType (..)
-    , addVariable
     , getLabel
-    , getVariable
-    , getVariables
     , methodUnion
-    , removeVariable
-    , setVariable
+    , printVariable
+    , updateVariable
     ) where
 
 import           Algebra.Graph.AdjacencyMap
@@ -23,11 +20,10 @@ import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
 import           MethodParser
 
-type Variable = (String, Maybe Double)
 type Method = (String, [(String, Expr)])
 
 data VertexType
-  = VertexVar Variable
+  = VertexVar String
   | VertexMet Method
   deriving (Eq, Ord, Show)
 
@@ -56,7 +52,7 @@ instance Monoid Constraint where
   mappend = (<>)
 
 getLabel :: VertexType -> String
-getLabel (VertexVar (s, _)) = s
+getLabel (VertexVar s)      = s
 getLabel (VertexMet (s, _)) = s
 
 eval :: [Variable] -> Expr -> Double
@@ -75,12 +71,14 @@ eval _ (Lit x)       = x
 type Variable = (String, Maybe Double)
 type VariableState = [Variable]
 
-getVariable :: String -> VariableMonad (Maybe Variable)
-getVariable s = do
-    gets (fmap (s,) . lookup s) -- some magic right here
+updateVariable :: (String, Expr) -> StateT VariableState IO ()
+updateVariable (name, e) = do
+    vars <- get
+    let newVal = eval vars e
+    put $ (name, Just newVal) : filter (\(s, _) -> s /= name) vars
 
-setVariable :: String -> Double -> VariableMonad ()
-setVariable s d = do
-    vs <- get
-    let vs' = filter (\(s', _) -> s /= s') vs
-    put ((s, Just d) : vs')
+printVariable :: String -> StateT VariableState IO ()
+printVariable name = do
+    vars <- get
+    let val = lookup name vars
+    liftIO $ putStrLn $ "Variable " ++ name ++ " = " ++ show val
