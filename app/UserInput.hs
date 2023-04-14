@@ -9,7 +9,7 @@ import           Data.Maybe          (fromMaybe)
 import           HotDrink
 import qualified Whap
 
-data InputState = Init | Prompt | Exit | Plan | Help | Unknown deriving
+data InputState = Init | Prompt | Exit | Plan | Help | Unknown | Add deriving
     ( Eq
     , Show
     )
@@ -20,6 +20,7 @@ instance Read InputState where
     readsPrec _ "exit"   = [(Exit, "")]
     readsPrec _ "plan"   = [(Plan, "")]
     readsPrec _ "help"   = [(Help, "")]
+    readsPrec _ "add"    = [(Add, "")]
     readsPrec _ _        = [(Unknown, "")]
 
 handleInput :: (InputState -> IO ()) -> InputState -> IO ()
@@ -58,6 +59,16 @@ handleInput nextInput Plan = do
 
 handleInput nextInput Unknown = do
     putStrLn "Unknown command"
+    nextInput Prompt
+
+handleInput nextInput Add = do
+    putStrLn "Enter variable name:"
+    putStr "$ "
+    name <- getLine
+    putStrLn "Enter variable value:"
+    putStr "$ "
+    value <- getLine
+    putStrLn $ "Added variable " ++ name ++ " with value " ++ value
     nextInput Prompt
 
 userInput :: InputState -> IO ()

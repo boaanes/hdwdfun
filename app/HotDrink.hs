@@ -1,13 +1,16 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE TupleSections #-}
 
 module HotDrink
     ( Constraint (..)
     , Method
     , MethodGraph
     , Variable
+    , VariableState
     , VertexType (..)
     , getLabel
+    , methodToGraph
     , methodUnion
     , printVariable
     , updateVariable
@@ -82,3 +85,11 @@ printVariable name = do
     vars <- get
     let val = lookup name vars
     liftIO $ putStrLn $ "Variable " ++ name ++ " = " ++ show val
+
+methodToGraph :: [String] -> String -> Method -> MethodGraph
+methodToGraph inputs output (name, exprs) =
+    let inputVertices = map VertexVar inputs
+        outputVertex = VertexVar output
+        methodVertex = VertexMet (name, exprs)
+        inputEdges = map (, methodVertex) inputVertices
+    in overlay (edges inputEdges) (edge methodVertex outputVertex)
