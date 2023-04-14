@@ -26,6 +26,7 @@ dependencies:
 - containers
 - time
 - mtl
+- safe
 
 ghc-options:
 - -Wall

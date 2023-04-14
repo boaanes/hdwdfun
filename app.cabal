@@ -37,6 +37,7 @@ library
     , containers
     , mtl
     , parsec
+    , safe
     , time
   default-language: Haskell2010
 
@@ -64,6 +65,7 @@ executable app-exe
     , containers
     , mtl
     , parsec
+    , safe
     , time
   default-language: Haskell2010
 
@@ -82,5 +84,6 @@ test-suite app-test
     , containers
     , mtl
     , parsec
+    , safe
     , time
   default-language: Haskell2010
