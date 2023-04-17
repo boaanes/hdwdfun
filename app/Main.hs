@@ -65,6 +65,20 @@ processInput input = do
             modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
             modify $ \s -> s { strength = var : filter (/= var) (strength s) }
             enforcePlan
+        ["help"] -> do
+            liftIO $ putStrLn "Commands:"
+            liftIO $ putStrLn "addVar <var> <val> - add a variable with a value"
+            liftIO $ putStrLn "addCons <n> - add a constraint with n methods"
+            liftIO $ putStrLn "update <var> <val> - update a variable with a value"
+            liftIO $ putStrLn "delete <var> - delete a variable"
+            liftIO $ putStrLn "readVars - read all variables"
+            liftIO $ putStrLn "readCons - read all constraints"
+            liftIO $ putStrLn "readStay - read all stay variables"
+            liftIO $ putStrLn "plan - compute a plan"
+            liftIO $ putStrLn "satisfy - enforce the plan"
+            liftIO $ putStrLn "updateAndSatisfy <var> <val> - update a variable and enforce the plan"
+            liftIO $ putStrLn "help - print this help"
+            liftIO $ putStrLn "exit - exit the program"
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
 
