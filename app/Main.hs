@@ -51,8 +51,7 @@ processInput input = do
         ["plan"] -> do
             cons <- gets constraints
             st <- gets strength
-            -- map st to a list of constraints with methodgraphs that points from a method with the expr (Var name of st element) to the variable node with the name of the st element
-            let order = map (\s -> Constraint [methodToGraph [] s ("m" ++ s, [(s, Var s)])]) st
+            let order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) st
                 methods = methodsToEnforce (plan order $ mconcat cons)
             case methods of
                 Just m  -> liftIO $ putStrLn $ "Plan: " ++ show m
@@ -60,37 +59,37 @@ processInput input = do
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
 
+inputExpr :: String -> IO (String, Expr)
+inputExpr name = do
+    putStrLn $ "Enter expression for " ++ name ++ ":"
+    input <- prompt
+    case runParser (expr :: Parser Char String Expr) input of
+        Right (e, "") -> return (name, e)
+        Right (_, trail) -> do
+            putStrLn $ "Parse error: " ++ trail
+            inputExpr name
+        Left err -> do
+            putStrLn $ "Parse error: " ++ show err
+            inputExpr name
+
 inputMethod :: StateT ConstraintSystem IO ()
 inputMethod = do
     liftIO $ putStrLn "Enter name of method:"
     name <- liftIO getLine
     liftIO $ putStrLn "Enter space separated input names to method:"
     inputsStr <- liftIO getLine
-    liftIO $ putStrLn "Enter output variable to method:"
-    outputStr <- liftIO getLine
-    liftIO $ putStrLn "Enter method body:"
-    bodyStr <- liftIO getLine
+    liftIO $ putStrLn "Enter output variables to method:"
+    outputsStr <- liftIO getLine
     let inputs = words inputsStr
-        output = outputStr
-        methodBody = runParser (expr :: Parser Char String Expr) bodyStr
-    case methodBody of
-        Right (e, "") -> do
-            -- check that inputs and outputs are in the variables map
-            cs <- get
-            liftIO $ print inputs
-            liftIO $ putStrLn output
-            if all (\i -> Map.member i (variables cs)) inputs && Map.member output (variables cs)
-                then do
-                    liftIO $ putStrLn "Parse success"
-                    let method = (name, [(output, e)])
-                        methodGraph = methodToGraph inputs output method
-                    modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
-                else
-                    liftIO $ putStrLn "Parse fail: input or output not in variables"
-        Right (_, trail) ->
-            liftIO $ putStrLn $ "Parse fail at: " ++ trail
-        Left e ->
-            liftIO $ putStrLn $ "Parse fail: " ++ show e
+        outputs = words outputsStr
+    exprs <- liftIO $ traverse inputExpr outputs
+    let method = (name, exprs)
+        methodGraph = methodToGraph inputs method
+    modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
+
+    liftIO $ putStrLn "Parse success"
+
+
 
 prompt :: IO String
 prompt = do

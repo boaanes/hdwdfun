@@ -86,10 +86,10 @@ printVariable name = do
     let val = lookup name vars
     liftIO $ putStrLn $ "Variable " ++ name ++ " = " ++ show val
 
-methodToGraph :: [String] -> String -> Method -> MethodGraph
-methodToGraph inputs output (name, exprs) =
+methodToGraph :: [String] -> Method -> MethodGraph
+methodToGraph inputs method =
     let inputVertices = map VertexVar inputs
-        outputVertex = VertexVar output
-        methodVertex = VertexMet (name, exprs)
+        methodVertex = VertexMet method
         inputEdges = map (, methodVertex) inputVertices
-    in overlay (edges inputEdges) (edge methodVertex outputVertex)
+        outputEdges = map ((methodVertex,) . VertexVar . fst) (snd method)
+    in overlay (edges inputEdges) (edges outputEdges)
