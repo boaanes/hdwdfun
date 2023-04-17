@@ -3,9 +3,7 @@ module UserInput
     , userInput
     ) where
 import           Algs
-import           Control.Monad.State
-import           Data.Char           (toLower)
-import           Data.Maybe          (fromMaybe)
+import           Data.Char (toLower)
 import           HotDrink
 import qualified Whap
 
@@ -52,8 +50,7 @@ handleInput nextInput Plan = do
         exprs = concatExprsInMethodList <$> methods
     case exprs of
         Just _ -> do
-            (_, finalState) <- runStateT (traverse updateVariable (fromMaybe [] exprs)) initialState
-            putStrLn $ "Final state: " ++ show finalState
+            putStrLn $ "Final state: "
         Nothing -> putStrLn "No methods to enforce"
     nextInput Prompt
 

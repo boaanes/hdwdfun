@@ -1,14 +1,15 @@
 module Main
     ( main
     ) where
-import           Algs                (methodsToEnforce, plan)
+import           Algs                (concatExprsInMethodList, methodsToEnforce,
+                                      plan)
 import           Control.Monad
 import           Control.Monad.State
 import           Data.Foldable       (traverse_)
 import           Data.Map            (Map)
 import qualified Data.Map            as Map
-import           HotDrink            (Constraint (..), methodToGraph)
-import           MethodParser        (Expr (Var), Parser (runParser), expr)
+import           HotDrink            (Constraint (..), eval, methodToGraph)
+import           MethodParser        (Expr (..), Parser (runParser), expr)
 import           System.IO
 
 data ConstraintSystem
@@ -56,6 +57,21 @@ processInput input = do
             case methods of
                 Just m  -> liftIO $ putStrLn $ "Plan: " ++ show m
                 Nothing -> liftIO $ putStrLn "No plan found"
+        ["satisfy"] -> do
+            cons <- gets constraints
+            st <- gets strength
+            let order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) st
+                methods = methodsToEnforce (plan order $ mconcat cons)
+            case methods of
+                Just m  -> do
+                    let enforce = concatExprsInMethodList m
+                    traverse_ (\(name, e) -> do
+                        vars <- gets variables
+                        let newVal = eval vars e
+                        modify $ \s -> s { variables = Map.insert name (Just newVal) (variables s) }
+                        ) enforce
+                    liftIO $ putStrLn $ "Plan: " ++ show m
+                Nothing -> liftIO $ putStrLn "No plan found"
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
 
@@ -75,11 +91,11 @@ inputExpr name = do
 inputMethod :: StateT ConstraintSystem IO ()
 inputMethod = do
     liftIO $ putStrLn "Enter name of method:"
-    name <- liftIO getLine
+    name <- liftIO prompt
     liftIO $ putStrLn "Enter space separated input names to method:"
-    inputsStr <- liftIO getLine
+    inputsStr <- liftIO prompt
     liftIO $ putStrLn "Enter output variables to method:"
-    outputsStr <- liftIO getLine
+    outputsStr <- liftIO prompt
     let inputs = words inputsStr
         outputs = words outputsStr
     exprs <- liftIO $ traverse inputExpr outputs
@@ -88,8 +104,6 @@ inputMethod = do
     modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
 
     liftIO $ putStrLn "Parse success"
-
-
 
 prompt :: IO String
 prompt = do
@@ -103,105 +117,27 @@ userInputLoop = do
     processInput input
     unless (input == "exit") userInputLoop
 
+testVars :: Map String (Maybe Double)
+testVars = Map.fromList [("w", Just 10), ("h", Just 10), ("a", Just 100), ("p", Just 40)]
+
+testCons :: [Constraint]
+testCons =
+    [ Constraint
+        [ methodToGraph ["w", "h"] ("m1", [("a", BinOp "*" (Var "w") (Var "h"))])
+        , methodToGraph ["a"] ("m3", [("w", Sqrt (Var "a")), ("h", Sqrt (Var "a"))])
+        ]
+    , Constraint
+        [ methodToGraph ["w", "h"] ("m2", [("p", BinOp "*" (Lit 2) (BinOp "+" (Var "w")  (Var "h")))])
+        , methodToGraph ["w", "p"] ("m4", [("h", BinOp "-" (BinOp "/" (Var "p") (Lit 2)) (Var "w"))])
+        , methodToGraph ["h", "p"] ("m5", [("w", BinOp "-" (BinOp "/" (Var "p") (Lit 2)) (Var "h"))])
+        ]
+    ]
+
+testOrder :: [String]
+testOrder = ["a", "p", "w", "h"]
+
 main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
-    evalStateT userInputLoop (ConstraintSystem Map.empty [] [])
+    evalStateT userInputLoop (ConstraintSystem testVars testCons testOrder)
     putStrLn "Goodbye"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    {-
-data State
-  = State
-      { variables   :: [Variable]
-      , constraints :: [Constraint]
-      }
-  deriving (Eq, Show)
-
-inputMethod :: State -> IO ()
-inputMethod (State vars cs) = do
-    putStrLn "Enter name of method:"
-    name <- getLine
-    putStrLn "Enter comma separated input names to method:"
-    inputsStr <- getLine
-    putStrLn "Enter output variable to method:"
-    outputStr <- getLine
-    putStrLn "Enter method body:"
-    bodyStr <- getLine
-    let inputs = words inputsStr
-        output = outputStr
-        methodBody = MethodParser.runParser (MethodParser.expr :: Parser Char String Expr) bodyStr
-    case methodBody of
-        Right (e, _) -> do
-            putStrLn "Parse success"
-            let method = (name, [(output, e)])
-                methodGraph = methodToGraph inputs output method
-            userInputLoop (State vars (Constraint (methodGraph : unConstraint (head cs)) : drop 1 cs))
-        Left _ ->
-            putStrLn "Parse fail"
-
-userInputLoop :: State -> IO ()
-userInputLoop (State vars cs) = do
-    putStr "Current state: "
-    print $ "Vars: " ++ show vars
-    print $ "Constraints: " ++ show cs
-    putStr "$ "
-    inp <- getLine
-    case inp of
-      "addVar" -> do
-          putStrLn "Enter variable name"
-          putStr "$ "
-          var <- getLine
-          putStrLn "Enter value"
-          putStr "$ "
-          valStr <- getLine
-          case reads valStr of
-              [(val, "")] -> do
-                  userInputLoop (State ((var, Just val) : vars) cs)
-              _ -> do
-                  putStrLn "Couldnt parse the value"
-                  userInputLoop (State vars cs)
-      "addCons" -> do
-          putStrLn "Enter number of methods in constraint:"
-          nMethodsStr <- getLine
-          case reads nMethodsStr of
-              [(n, "")] -> do
-                  traverse_ (\_ -> inputMethod (State vars (Constraint [] : cs))) [1..n]
-              _ -> do
-                  putStrLn "Couldnt parse the number of methods"
-                  userInputLoop (State vars cs)
-
-
-
-      _ -> do
-          putStrLn "Unknown command"
-          userInputLoop (State vars cs)
-
-
-main :: IO ()
-main = userInputLoop (State [] [])
--}
-
--- main :: IO ()
--- main = userInput Init

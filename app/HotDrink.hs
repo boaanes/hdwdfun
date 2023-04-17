@@ -9,16 +9,15 @@ module HotDrink
     , Variable
     , VariableState
     , VertexType (..)
+    , eval
     , getLabel
     , methodToGraph
     , methodUnion
-    , printVariable
-    , updateVariable
     ) where
 
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
-import           Control.Monad.State
+import qualified Data.Map                             (Map, lookup)
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
 import           MethodParser
@@ -58,7 +57,7 @@ getLabel :: VertexType -> String
 getLabel (VertexVar s)      = s
 getLabel (VertexMet (s, _)) = s
 
-eval :: [Variable] -> Expr -> Double
+eval :: Data.Map.Map String (Maybe Double) -> Expr -> Double
 eval vs (BinOp "+" a b) = eval vs a + eval vs b
 eval vs (BinOp "-" a b) = eval vs a - eval vs b
 eval vs (BinOp "*" a b) = eval vs a * eval vs b
@@ -66,25 +65,13 @@ eval vs (BinOp "/" a b) = eval vs a / eval vs b
 eval _ (BinOp {})      = error "Operator not supported"
 eval vs (Sqrt e)      = sqrt $ eval vs e
 eval vs (Var x)       =
-    case lookup x vs of
-        Just (Just v) -> v
-        _             -> error $ "Variable " <> x <> " not found"
+    case Data.Map.lookup x vs of
+        Just (Just x') -> x'
+        _              -> error $ "Variable " ++ x ++ " not found"
 eval _ (Lit x)       = x
 
 type Variable = (String, Maybe Double)
 type VariableState = [Variable]
-
-updateVariable :: (String, Expr) -> StateT VariableState IO ()
-updateVariable (name, e) = do
-    vars <- get
-    let newVal = eval vars e
-    put $ (name, Just newVal) : filter (\(s, _) -> s /= name) vars
-
-printVariable :: String -> StateT VariableState IO ()
-printVariable name = do
-    vars <- get
-    let val = lookup name vars
-    liftIO $ putStrLn $ "Variable " ++ name ++ " = " ++ show val
 
 methodToGraph :: [String] -> Method -> MethodGraph
 methodToGraph inputs method =
