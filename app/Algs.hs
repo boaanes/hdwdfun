@@ -31,6 +31,10 @@ methodsToEnforce (Constraint [x]) = case topSort x of
     Left _   -> Nothing
 methodsToEnforce _ = Nothing
 
+getLabels :: Maybe [VertexType] -> [String]
+getLabels (Just vs) = map (\case VertexMet (s, _) -> s; VertexVar s -> s) vs
+getLabels Nothing   = []
+
 getVariables :: Constraint -> [VertexType]
 getVariables (Constraint [x]) =
     map (\case VertexVar v -> VertexVar v; _ -> error "not a variable")

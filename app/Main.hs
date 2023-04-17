@@ -1,14 +1,17 @@
 module Main
-    ( main
+    ( computePlan
+    , main
     ) where
-import           Algs                (concatExprsInMethodList, methodsToEnforce,
-                                      plan)
+import           Algs                (concatExprsInMethodList, getLabels,
+                                      methodsToEnforce, plan)
 import           Control.Monad
 import           Control.Monad.State
 import           Data.Foldable       (traverse_)
+import           Data.List           (intercalate)
 import           Data.Map            (Map)
 import qualified Data.Map            as Map
-import           HotDrink            (Constraint (..), eval, methodToGraph)
+import           HotDrink            (Constraint (..), VertexType, eval,
+                                      methodToGraph)
 import           MethodParser        (Expr (..), Parser (runParser), expr)
 import           System.IO
 
@@ -40,9 +43,10 @@ processInput input = do
         ["delete", var] -> do
             modify $ \s -> s { variables = Map.delete var (variables s) }
             liftIO $ putStrLn $ "Deleted variable: " ++ var
+        -- pretty print variables
         ["readVars"] -> do
             vars <- gets variables
-            liftIO $ putStrLn $ "Variables: " ++ show vars
+            liftIO $ mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) (Map.toList vars)
         ["readCons"] -> do
             cons <- gets constraints
             liftIO $ putStrLn $ "Constraints: " ++ show cons
@@ -52,28 +56,40 @@ processInput input = do
         ["plan"] -> do
             cons <- gets constraints
             st <- gets strength
-            let order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) st
-                methods = methodsToEnforce (plan order $ mconcat cons)
-            case methods of
-                Just m  -> liftIO $ putStrLn $ "Plan: " ++ show m
+            case computePlan st cons of
+                Just m  -> liftIO $ putStrLn $ "Plan: " ++ intercalate " -> " (getLabels $ Just m)
                 Nothing -> liftIO $ putStrLn "No plan found"
         ["satisfy"] -> do
-            cons <- gets constraints
-            st <- gets strength
-            let order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) st
-                methods = methodsToEnforce (plan order $ mconcat cons)
-            case methods of
-                Just m  -> do
-                    let enforce = concatExprsInMethodList m
-                    traverse_ (\(name, e) -> do
-                        vars <- gets variables
-                        let newVal = eval vars e
-                        modify $ \s -> s { variables = Map.insert name (Just newVal) (variables s) }
-                        ) enforce
-                    liftIO $ putStrLn $ "Plan: " ++ show m
-                Nothing -> liftIO $ putStrLn "No plan found"
+            enforcePlan
+        ["updateAndSatisfy", var, val] -> do
+            modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
+            modify $ \s -> s { strength = var : filter (/= var) (strength s) }
+            enforcePlan
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
+
+computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
+computePlan stay cons = methodsToEnforce $ plan order $ mconcat cons
+  where
+    order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
+
+enforcePlan :: StateT ConstraintSystem IO ()
+enforcePlan = do
+    cons <- gets constraints
+    st <- gets strength
+    case computePlan st cons of
+        Just m  -> do
+            let ms = concatExprsInMethodList m
+            enforce ms
+            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m)
+        Nothing -> liftIO $ putStrLn "No plan found"
+
+enforce :: [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforce = traverse_ (\(name, e) -> do
+    vars <- gets variables
+    let newVal = eval vars e
+    modify $ \s -> s { variables = Map.insert name (Just newVal) (variables s) }
+    )
 
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
@@ -107,9 +123,11 @@ inputMethod = do
 
 prompt :: IO String
 prompt = do
-    putStr "$ "
+    putStr "\ESC[32m$ "
     hFlush stdout
-    getLine
+    input <- getLine
+    putStr "\ESC[0m"
+    return input
 
 userInputLoop :: StateT ConstraintSystem IO ()
 userInputLoop = do
