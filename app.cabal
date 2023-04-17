@@ -49,7 +49,6 @@ executable app-exe
       HotDrink
       MethodParser
       PrettyPrinter
-      UserInput
       WarmDrink
       Conf
       Whap

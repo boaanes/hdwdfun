@@ -4,21 +4,9 @@ module Algs where
 
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
-import           Data.Bits
 import           Data.Foldable                        (fold)
 import           HotDrink
 import           MethodParser
-
-nCombinations :: Int -> [Int]
-nCombinations n = reverse [0..2^n - 1]
-
--- get all combinations of bits given n
-bitCombination :: Int -> [a] -> [a]
-bitCombination _ []     = []
-bitCombination n (x:xs) =
-  if testBit n (length xs)
-    then x : bitCombination n xs
-    else bitCombination n xs
 
 -- check if constraint is part of another constraint (is subgraph)
 partOf :: Constraint -> Constraint -> Bool
