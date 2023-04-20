@@ -13,6 +13,7 @@ import qualified Data.Map            as Map
 import           HotDrink            (Constraint (..), VertexType, eval,
                                       methodToGraph)
 import           MethodParser        (Expr (..), Parser (runParser), expr)
+import           PrettyPrinter       (prettyPrintConstraint)
 import           System.IO
 
 data ConstraintSystem
@@ -25,11 +26,11 @@ data ConstraintSystem
 processInput :: String -> StateT ConstraintSystem IO ()
 processInput input = do
     case words input of
-        ["addVar", var, val] -> do
+        ["var", var, val] -> do
             modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
             modify $ \s -> s { strength = var : strength s }
             liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
-        ["addCons", nMethodsStr] -> do
+        ["constr", nMethodsStr] -> do
             case (reads nMethodsStr :: [(Int, String)]) of
                 [(n, "")] -> do
                     modify $ \s -> s { constraints = Constraint [] : constraints s }
@@ -43,41 +44,37 @@ processInput input = do
         ["delete", var] -> do
             modify $ \s -> s { variables = Map.delete var (variables s) }
             liftIO $ putStrLn $ "Deleted variable: " ++ var
-        -- pretty print variables
-        ["readVars"] -> do
+        ["show", "var"] -> do
             vars <- gets variables
-            liftIO $ mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) (Map.toList vars)
-        ["readCons"] -> do
+            liftIO $ mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) (Map.toList vars)
+        ["show", "var", x] -> do
+            vars <- gets variables
+            let val = Map.lookup x vars
+            maybe (liftIO $ putStrLn $ "Variable '" ++ x ++ "' not found") (liftIO . putStrLn . (x ++) . (" = " ++) . show) val
+        ["show", "constr"] -> do
             cons <- gets constraints
-            liftIO $ putStrLn $ "Constraints: " ++ show cons
-        ["readStay"] -> do
+            liftIO $ putStrLn $ intercalate ("\n" <> replicate 30 '-' <> "\n") $ map prettyPrintConstraint cons
+        ["show", "strength"] -> do
             stay <- gets strength
-            liftIO $ putStrLn $ "Stay variables: " ++ show stay
-        ["plan"] -> do
+            liftIO $ putStrLn $ intercalate ", " stay
+        ["show", "plan"] -> do
             cons <- gets constraints
             st <- gets strength
-            case computePlan st cons of
-                Just m  -> liftIO $ putStrLn $ "Plan: " ++ intercalate " -> " (getLabels $ Just m)
-                Nothing -> liftIO $ putStrLn "No plan found"
-        ["satisfy"] -> do
-            enforcePlan
-        ["updateAndSatisfy", var, val] -> do
-            modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
-            modify $ \s -> s { strength = var : filter (/= var) (strength s) }
-            enforcePlan
+            maybe (liftIO $ putStrLn "No plan found") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan st cons)
+        ["run"] -> enforcePlan
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
-            liftIO $ putStrLn "addVar <var> <val> - add a variable with a value"
-            liftIO $ putStrLn "addCons <n> - add a constraint with n methods"
-            liftIO $ putStrLn "update <var> <val> - update a variable with a value"
-            liftIO $ putStrLn "delete <var> - delete a variable"
-            liftIO $ putStrLn "readVars - read all variables"
-            liftIO $ putStrLn "readCons - read all constraints"
-            liftIO $ putStrLn "readStay - read all stay variables"
-            liftIO $ putStrLn "plan - compute a plan"
-            liftIO $ putStrLn "satisfy - enforce the plan"
-            liftIO $ putStrLn "updateAndSatisfy <var> <val> - update a variable and enforce the plan"
-            liftIO $ putStrLn "help - print this help"
+            liftIO $ putStrLn "var <name> <value> - add a variable"
+            liftIO $ putStrLn "constr <n> - add a constraint with n methods"
+            liftIO $ putStrLn "update <name> <value> - update a variable"
+            liftIO $ putStrLn "delete <name> - delete a variable"
+            liftIO $ putStrLn "show var - show all variables"
+            liftIO $ putStrLn "show var <name> - show variable with a given name"
+            liftIO $ putStrLn "show constr - show all constraints"
+            liftIO $ putStrLn "show strength - show the current strength of variables in descending order"
+            liftIO $ putStrLn "show plan - show the plan to be computed based on the current strength"
+            liftIO $ putStrLn "run - enforce the current plan"
+            liftIO $ putStrLn "help - show this message"
             liftIO $ putStrLn "exit - exit the program"
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
@@ -91,12 +88,12 @@ enforcePlan :: StateT ConstraintSystem IO ()
 enforcePlan = do
     cons <- gets constraints
     st <- gets strength
-    case computePlan st cons of
-        Just m  -> do
-            let ms = concatExprsInMethodList m
-            enforce ms
+    maybe
+        (liftIO $ putStrLn "No plan found")
+        (\m -> do
+            enforce (concatExprsInMethodList m)
             liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m)
-        Nothing -> liftIO $ putStrLn "No plan found"
+        ) (computePlan st cons)
 
 enforce :: [(String, Expr)] -> StateT ConstraintSystem IO ()
 enforce = traverse_ (\(name, e) -> do
@@ -112,7 +109,7 @@ inputExpr name = do
     case runParser (expr :: Parser Char String Expr) input of
         Right (e, "") -> return (name, e)
         Right (_, trail) -> do
-            putStrLn $ "Parse error: " ++ trail
+            putStrLn $ "Parse error at: '" ++ trail ++ "'"
             inputExpr name
         Left err -> do
             putStrLn $ "Parse error: " ++ show err
@@ -128,11 +125,10 @@ inputMethod = do
     outputsStr <- liftIO prompt
     let inputs = words inputsStr
         outputs = words outputsStr
-    exprs <- liftIO $ traverse inputExpr outputs
+    exprs <- liftIO $ traverse inputExpr outputs
     let method = (name, exprs)
         methodGraph = methodToGraph inputs method
     modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
-
     liftIO $ putStrLn "Parse success"
 
 prompt :: IO String
@@ -171,5 +167,6 @@ testOrder = ["a", "p", "w", "h"]
 main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
+    putStrLn "Type 'help' for a list of commands"
     evalStateT userInputLoop (ConstraintSystem testVars testCons testOrder)
     putStrLn "Goodbye"

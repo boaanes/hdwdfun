@@ -7,7 +7,7 @@ import qualified HotDrink                   as HD
 
 prettyPrintConstraint :: HD.Constraint -> String
 prettyPrintConstraint (HD.Constraint methodGraphs)
-    = intercalate (replicate 30 '-') (map prettyPrintMethodGraph methodGraphs)
+    = intercalate "\n" (map prettyPrintMethodGraph methodGraphs)
 
 prettyPrintMethodGraph :: HD.MethodGraph -> String
 prettyPrintMethodGraph methodGraph =
