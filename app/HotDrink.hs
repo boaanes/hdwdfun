@@ -63,7 +63,10 @@ eval vs (BinOp "-" a b) = eval vs a - eval vs b
 eval vs (BinOp "*" a b) = eval vs a * eval vs b
 eval vs (BinOp "/" a b) = eval vs a / eval vs b
 eval _ (BinOp {})      = error "Operator not supported"
-eval vs (Sqrt e)      = sqrt $ eval vs e
+eval vs (UnOp "sqrt" e)      = sqrt $ eval vs e
+eval vs (UnOp "log" e)       = log $ eval vs e
+eval vs (UnOp "exp" e)       = exp $ eval vs e
+eval _ (UnOp {})       = error "Operator not supported"
 eval vs (Var x)       =
     case Data.Map.lookup x vs of
         Just (Just x') -> x'

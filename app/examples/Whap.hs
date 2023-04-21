@@ -36,7 +36,7 @@ m2 :: Method
 m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
 
 m3 :: Method
-m3 = ("m3", [("height", Sqrt (Var "area")), ("width", Sqrt (Var "area"))])
+m3 = ("m3", [("height", UnOp "sqrt" (Var "area")), ("width", UnOp "sqrt" (Var "area"))])
 
 m4 :: Method
 m4 = ("m4", [("height", BinOp "-" (Var "width") (BinOp "/" (Var "perimeter") (Lit 2)))])

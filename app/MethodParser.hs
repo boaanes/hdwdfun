@@ -3,10 +3,11 @@ module MethodParser where
 import           Control.Applicative
 import           Data.Char           (isDigit, isLetter, isSpace)
 import           Data.List           (nub)
+import           Debug.Trace         (trace)
 
 data Expr
   = BinOp String Expr Expr
-  | Sqrt Expr
+  | UnOp String Expr
   | Var String
   | Lit Double
   deriving (Eq, Ord, Show)
@@ -101,9 +102,6 @@ exprLit = Lit <$> (double <|> int)
 exprParen :: (Eq e) => Parser Char e Expr
 exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
 
-exprSqrt :: (Eq e) => Parser Char e Expr
-exprSqrt = Sqrt <$> (whiteSpace *> string "sqrt" *> exprParen <* whiteSpace)
-
 exprAddSub :: (Eq e) => Parser Char e Expr
 exprAddSub = do
   left <- exprTerm
@@ -111,7 +109,7 @@ exprAddSub = do
   BinOp operator left <$> expr
 
 exprTerm :: (Eq e) => Parser Char e Expr
-exprTerm = exprMulDiv <|> exprSqrt <|> exprFactor
+exprTerm = exprMulDiv <|> exprFactor
 
 exprMulDiv :: (Eq e) => Parser Char e Expr
 exprMulDiv = do
@@ -119,8 +117,13 @@ exprMulDiv = do
   operator <- string "*" <|> string "/"
   BinOp operator left <$> exprTerm
 
+exprUnOp :: (Eq e) => Parser Char e Expr
+exprUnOp = do
+  operator <- string "sqrt" <|> string "sin" <|> string "cos" <|> string "tan" <|> string "log"
+  UnOp operator <$> exprParen
+
 exprFactor :: (Eq e) => Parser Char e Expr
-exprFactor = exprParen <|> exprLit <|> exprVar
+exprFactor = exprParen <|> exprUnOp <|> exprVar <|> exprLit
 
 expr :: (Eq e) => Parser Char e Expr
 expr = exprAddSub <|> exprTerm

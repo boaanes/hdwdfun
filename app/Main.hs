@@ -152,7 +152,7 @@ testCons :: [Constraint]
 testCons =
     [ Constraint
         [ methodToGraph ["w", "h"] ("m1", [("a", BinOp "*" (Var "w") (Var "h"))])
-        , methodToGraph ["a"] ("m3", [("w", Sqrt (Var "a")), ("h", Sqrt (Var "a"))])
+        , methodToGraph ["a"] ("m3", [("w", UnOp "sqrt" (Var "a")), ("h", UnOp "sqrt" (Var "a"))])
         ]
     , Constraint
         [ methodToGraph ["w", "h"] ("m2", [("p", BinOp "*" (Lit 2) (BinOp "+" (Var "w")  (Var "h")))])
@@ -168,5 +168,5 @@ main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem testVars testCons testOrder)
+    evalStateT userInputLoop (ConstraintSystem Map.empty [] [])
     putStrLn "Goodbye"
