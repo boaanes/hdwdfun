@@ -33,16 +33,16 @@ m1 :: Method
 m1 = ("m1", [("area", BinOp "*" (Var "width") (Var "height"))])
 
 m2 :: Method
-m2 = ("m2", [("perimeter", BinOp "*" (Lit 2) (BinOp "+" (Var "width") (Var "height")))])
+m2 = ("m2", [("height", UnOp "sqrt" (Var "area")), ("width", UnOp "sqrt" (Var "area"))])
 
 m3 :: Method
-m3 = ("m3", [("height", UnOp "sqrt" (Var "area")), ("width", UnOp "sqrt" (Var "area"))])
+m3 = ("m3", [("perimeter", BinOp "*" (Lit (DoubleVal 2)) (BinOp "+" (Var "width") (Var "height")))])
 
 m4 :: Method
-m4 = ("m4", [("height", BinOp "-" (Var "width") (BinOp "/" (Var "perimeter") (Lit 2)))])
+m4 = ("m4", [("height", BinOp "-" (Var "width") (BinOp "/" (Var "perimeter") (Lit (DoubleVal 2))))])
 
 m5 :: Method
-m5 = ("m5", [("width", BinOp "-" (Var "height") (BinOp "/" (Var "perimeter") (Lit 2)))])
+m5 = ("m5", [("width", BinOp "-" (Var "height") (BinOp "/" (Var "perimeter") (Lit (DoubleVal 2))))])
 
 vArea :: String
 vArea = "area"
@@ -60,10 +60,10 @@ m1Graph :: MethodGraph
 m1Graph = stars [(VertexMet m1, [VertexVar vArea]), (VertexVar vWidth, [VertexMet m1]), (VertexVar vHeight, [VertexMet m1])]
 
 m2Graph :: MethodGraph
-m2Graph = stars [(VertexMet m2, [VertexVar vPerimeter]), (VertexVar vWidth, [VertexMet m2]), (VertexVar vHeight, [VertexMet m2])]
+m2Graph = stars [(VertexMet m2, [VertexVar vHeight, VertexVar vWidth]), (VertexVar vArea, [VertexMet m2])]
 
 m3Graph :: MethodGraph
-m3Graph = stars [(VertexMet m3, [VertexVar vHeight, VertexVar vWidth]), (VertexVar vArea, [VertexMet m3])]
+m3Graph = stars [(VertexMet m3, [VertexVar vPerimeter]), (VertexVar vWidth, [VertexMet m3]), (VertexVar vHeight, [VertexMet m3])]
 
 m4Graph :: MethodGraph
 m4Graph = stars [(VertexMet m4, [VertexVar vHeight]), (VertexVar vPerimeter, [VertexMet m4]), (VertexVar vWidth, [VertexMet m4])]

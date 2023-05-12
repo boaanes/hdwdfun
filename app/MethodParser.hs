@@ -1,15 +1,21 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use $>" #-}
 module MethodParser where
 import           Control.Applicative
 import           Data.Char           (isDigit, isLetter, isSpace)
 import           Data.List           (nub)
-import           Debug.Trace         (trace)
+
+data Value
+  = DoubleVal Double
+  | BoolVal Bool
+  deriving (Eq, Ord, Show)
 
 data Expr
   = BinOp String Expr Expr
   | UnOp String Expr
   | Var String
-  | Lit Double
+  | Lit Value
   deriving (Eq, Ord, Show)
 
 data Error i e
@@ -82,6 +88,9 @@ whiteSpace = spanP isSpace
 string :: Eq i => [i] -> Parser i e [i]
 string = traverse char
 
+bool :: (Eq e) => Parser Char e Bool
+bool = string "True" *> pure True <|> string "False" *> pure False
+
 double :: Parser Char e Double
 double = do
   natural <- whiteSpace *> notNull (spanP isDigit)
@@ -96,8 +105,11 @@ exprVar :: Parser Char e Expr
 exprVar = Var <$> (whiteSpace *> notNull vs <* whiteSpace)
   where vs = spanP isLetter
 
+valueParser :: (Eq e) => Parser Char e Value
+valueParser = DoubleVal <$> (double <|> int) <|> BoolVal <$> bool
+
 exprLit :: (Eq e) => Parser Char e Expr
-exprLit = Lit <$> (double <|> int)
+exprLit = Lit <$> valueParser
 
 exprParen :: (Eq e) => Parser Char e Expr
 exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
@@ -119,11 +131,11 @@ exprMulDiv = do
 
 exprUnOp :: (Eq e) => Parser Char e Expr
 exprUnOp = do
-  operator <- string "sqrt" <|> string "sin" <|> string "cos" <|> string "tan" <|> string "log"
+  operator <- string "sqrt" <|> string "log" <|> string "!"
   UnOp operator <$> exprParen
 
 exprFactor :: (Eq e) => Parser Char e Expr
-exprFactor = exprParen <|> exprUnOp <|> exprVar <|> exprLit
+exprFactor = exprParen <|> exprUnOp <|> exprLit <|> exprVar
 
 expr :: (Eq e) => Parser Char e Expr
 expr = exprAddSub <|> exprTerm

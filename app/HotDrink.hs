@@ -17,6 +17,7 @@ module HotDrink
 
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
+import           Control.Monad                        (join)
 import qualified Data.Map                             (Map, lookup)
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
@@ -57,21 +58,43 @@ getLabel :: VertexType -> String
 getLabel (VertexVar s)      = s
 getLabel (VertexMet (s, _)) = s
 
-eval :: Data.Map.Map String (Maybe Double) -> Expr -> Double
-eval vs (BinOp "+" a b) = eval vs a + eval vs b
-eval vs (BinOp "-" a b) = eval vs a - eval vs b
-eval vs (BinOp "*" a b) = eval vs a * eval vs b
-eval vs (BinOp "/" a b) = eval vs a / eval vs b
-eval _ (BinOp {})      = error "Operator not supported"
-eval vs (UnOp "sqrt" e)      = sqrt $ eval vs e
-eval vs (UnOp "log" e)       = log $ eval vs e
-eval vs (UnOp "exp" e)       = exp $ eval vs e
-eval _ (UnOp {})       = error "Operator not supported"
-eval vs (Var x)       =
-    case Data.Map.lookup x vs of
-        Just (Just x') -> x'
-        _              -> error $ "Variable " ++ x ++ " not found"
-eval _ (Lit x)       = x
+eval ::  Expr -> Data.Map.Map String (Maybe Value) -> Maybe Value
+eval (BinOp op e1 e2) env = do
+  v1 <- eval e1 env
+  v2 <- eval e2 env
+  case op of
+    "+"  -> liftBinOp (+) v1 v2
+    "-"  -> liftBinOp (-) v1 v2
+    "*"  -> liftBinOp (*) v1 v2
+    "/"  -> liftBinOp (/) v1 v2
+    "==" -> liftBoolBinOp (==) v1 v2
+    "!=" -> liftBoolBinOp (/=) v1 v2
+    _    -> Nothing
+eval (UnOp op e) env = do
+  v <- eval e env
+  case op of
+    "!"    -> liftBoolUnOp not v
+    "sqrt" -> liftDoubleUnOp sqrt v
+    "log"  -> liftDoubleUnOp log v
+    _      -> Nothing
+eval (Var name) env = do join $ Data.Map.lookup name env
+eval (Lit v) _ = Just v
+
+liftBinOp :: (Double -> Double -> Double) -> Value -> Value -> Maybe Value
+liftBinOp f (DoubleVal a) (DoubleVal b) = Just (DoubleVal (f a b))
+liftBinOp _ _ _                         = Nothing
+
+liftBoolBinOp :: (Bool -> Bool -> Bool) -> Value -> Value -> Maybe Value
+liftBoolBinOp f (BoolVal a) (BoolVal b) = Just (BoolVal (f a b))
+liftBoolBinOp _ _ _                     = Nothing
+
+liftBoolUnOp :: (Bool -> Bool) -> Value -> Maybe Value
+liftBoolUnOp f (BoolVal a) = Just (BoolVal (f a))
+liftBoolUnOp _ _           = Nothing
+
+liftDoubleUnOp :: (Double -> Double) -> Value -> Maybe Value
+liftDoubleUnOp f (DoubleVal a) = Just (DoubleVal (f a))
+liftDoubleUnOp _ _             = Nothing
 
 type Variable = (String, Maybe Double)
 type VariableState = [Variable]

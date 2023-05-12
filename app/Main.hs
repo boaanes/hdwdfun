@@ -4,6 +4,7 @@ module Main
     ) where
 import           Algs                (concatExprsInMethodList, getLabels,
                                       methodsToEnforce, plan)
+import           Control.Applicative ((<|>))
 import           Control.Monad
 import           Control.Monad.State
 import           Data.Foldable       (traverse_)
@@ -12,24 +13,32 @@ import           Data.Map            (Map)
 import qualified Data.Map            as Map
 import           HotDrink            (Constraint (..), VertexType, eval,
                                       methodToGraph)
-import           MethodParser        (Expr (..), Parser (runParser), expr)
+import           MethodParser        (Expr (..), Parser (runParser), Value (..),
+                                      expr)
 import           PrettyPrinter       (prettyPrintConstraint)
 import           System.IO
+import           Text.Read           (readMaybe)
 
 data ConstraintSystem
   = ConstraintSystem
-      { variables   :: Map String (Maybe Double)
+      { variables   :: Map String (Maybe Value)
       , constraints :: [Constraint]
       , strength    :: [String]
       }
+
+parseValue :: String -> Maybe Value
+parseValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
 
 processInput :: String -> StateT ConstraintSystem IO ()
 processInput input = do
     case words input of
         ["var", var, val] -> do
-            modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
-            modify $ \s -> s { strength = var : strength s }
-            liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
+            case parseValue val of
+                Nothing -> liftIO $ putStrLn "Couldnt parse the value"
+                Just v -> do
+                    modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
+                    modify $ \s -> s { strength = var : strength s }
+                    liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
         ["constr", nMethodsStr] -> do
             case (reads nMethodsStr :: [(Int, String)]) of
                 [(n, "")] -> do
@@ -38,9 +47,12 @@ processInput input = do
                     liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the number of methods"
         ["update", var, val] -> do
-            modify $ \s -> s { variables = Map.insert var (Just $ read val) (variables s) }
-            modify $ \s -> s { strength = var : filter (/= var) (strength s) }
-            liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
+            case parseValue val of
+                Nothing -> liftIO $ putStrLn "Couldnt parse the value"
+                Just v -> do
+                    modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
+                    modify $ \s -> s { strength = var : filter (/= var) (strength s) }
+                    liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
         ["delete", var] -> do
             modify $ \s -> s { variables = Map.delete var (variables s) }
             liftIO $ putStrLn $ "Deleted variable: " ++ var
@@ -98,8 +110,8 @@ enforcePlan = do
 enforce :: [(String, Expr)] -> StateT ConstraintSystem IO ()
 enforce = traverse_ (\(name, e) -> do
     vars <- gets variables
-    let newVal = eval vars e
-    modify $ \s -> s { variables = Map.insert name (Just newVal) (variables s) }
+    let newVal = eval e vars
+    modify $ \s -> s { variables = Map.insert name newVal (variables s) }
     )
 
 inputExpr :: String -> IO (String, Expr)
@@ -107,7 +119,9 @@ inputExpr name = do
     putStrLn $ "Enter expression for " ++ name ++ ":"
     input <- prompt
     case runParser (expr :: Parser Char String Expr) input of
-        Right (e, "") -> return (name, e)
+        Right (e, "") -> do
+            liftIO $ putStrLn "Parse success"
+            return (name, e)
         Right (_, trail) -> do
             putStrLn $ "Parse error at: '" ++ trail ++ "'"
             inputExpr name
@@ -129,7 +143,6 @@ inputMethod = do
     let method = (name, exprs)
         methodGraph = methodToGraph inputs method
     modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
-    liftIO $ putStrLn "Parse success"
 
 prompt :: IO String
 prompt = do
@@ -145,8 +158,8 @@ userInputLoop = do
     processInput input
     unless (input == "exit") userInputLoop
 
-testVars :: Map String (Maybe Double)
-testVars = Map.fromList [("w", Just 10), ("h", Just 10), ("a", Just 100), ("p", Just 40)]
+testVars :: Map String (Maybe Value)
+testVars = Map.fromList [("w", Just (DoubleVal 10)), ("h", Just (DoubleVal 10)), ("a", Just (DoubleVal 100)), ("p", Just (DoubleVal 40))]
 
 testCons :: [Constraint]
 testCons =
@@ -155,9 +168,9 @@ testCons =
         , methodToGraph ["a"] ("m3", [("w", UnOp "sqrt" (Var "a")), ("h", UnOp "sqrt" (Var "a"))])
         ]
     , Constraint
-        [ methodToGraph ["w", "h"] ("m2", [("p", BinOp "*" (Lit 2) (BinOp "+" (Var "w")  (Var "h")))])
-        , methodToGraph ["w", "p"] ("m4", [("h", BinOp "-" (BinOp "/" (Var "p") (Lit 2)) (Var "w"))])
-        , methodToGraph ["h", "p"] ("m5", [("w", BinOp "-" (BinOp "/" (Var "p") (Lit 2)) (Var "h"))])
+        [ methodToGraph ["w", "h"] ("m2", [("p", BinOp "*" (Lit (DoubleVal 2)) (BinOp "+" (Var "w")  (Var "h")))])
+        , methodToGraph ["w", "p"] ("m4", [("h", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "w"))])
+        , methodToGraph ["h", "p"] ("m5", [("w", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "h"))])
         ]
     ]
 
@@ -168,5 +181,5 @@ main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem Map.empty [] [])
+    evalStateT userInputLoop (ConstraintSystem testVars testCons testOrder)
     putStrLn "Goodbye"
