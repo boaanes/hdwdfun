@@ -35,9 +35,12 @@ library
       algebraic-graphs
     , base >=4.7 && <5
     , containers
+    , megaparsec
     , mtl
     , parsec
+    , parser-combinators
     , safe
+    , text
     , time
   default-language: Haskell2010
 
@@ -62,9 +65,12 @@ executable app-exe
     , app
     , base >=4.7 && <5
     , containers
+    , megaparsec
     , mtl
     , parsec
+    , parser-combinators
     , safe
+    , text
     , time
   default-language: Haskell2010
 
@@ -81,8 +87,11 @@ test-suite app-test
     , app
     , base >=4.7 && <5
     , containers
+    , megaparsec
     , mtl
     , parsec
+    , parser-combinators
     , safe
+    , text
     , time
   default-language: Haskell2010

@@ -1,10 +1,21 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use $>" #-}
-module MethodParser where
-import           Control.Applicative
-import           Data.Char           (isDigit, isLetter, isSpace)
-import           Data.List           (nub)
+{-# LANGUAGE OverloadedStrings #-}
+
+module MethodParser
+    ( Expr (..)
+    , Parser
+    , Value (..)
+    , parseExpr
+    ) where
+
+import           Control.Monad                  (guard, void)
+import           Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
+import           Data.Void
+import           Text.Megaparsec
+import           Text.Megaparsec.Byte.Lexer     (lexeme)
+import           Text.Megaparsec.Char
+import           Text.Megaparsec.Char.Lexer     (decimal, float, signed)
+
+type Parser = Parsec Void String
 
 data Value
   = DoubleVal Double
@@ -18,124 +29,63 @@ data Expr
   | Lit Value
   deriving (Eq, Ord, Show)
 
-data Error i e
-  = EndOfInput
-  | Unexpected i
-  | CustomError e
-  | Empty
-  deriving (Eq, Show)
+sc :: Parser ()
+sc = void $ takeWhileP (Just "space") (== ' ')
 
-newtype Parser i e a
-  = Parser { runParser :: [i] -> Either [Error i e] (a, [i]) }
+symbol :: String -> Parser String
+symbol s = sc *> string s <* sc
 
-instance Functor (Parser i e) where
-  fmap :: (a -> b) -> Parser i e a -> Parser i e b
-  fmap f (Parser p) = Parser $ \input -> do
-    (output, rest) <- p input
-    Right (f output, rest)
-
-instance Applicative (Parser i e) where
-  pure a = Parser $ \input -> Right (a, input)
-
-  Parser p1 <*> Parser p2 = Parser $ \input -> do
-    (p1', rest) <- p1 input
-    (output, rest') <- p2 rest
-    Right (p1' output, rest')
-
-instance (Eq i, Eq e) => Alternative (Parser i e) where
-  empty = Parser $ \_ -> Left [Empty]
-
-  Parser l <|> Parser r = Parser $ \input ->
-    case l input of
-      Left err ->
-        case r input of
-          Left err'            -> Left $ nub $ err <> err'
-          Right (output, rest) -> Right (output, rest)
-      Right (output, rest) -> Right (output, rest)
-
-instance Monad (Parser i e) where
-  return = pure
-
-  Parser p >>= f = Parser $ \input -> do
-    (output, rest) <- p input
-    runParser (f output) rest
-
-char :: (Eq i) => i -> Parser i e i
-char x = Parser p
+parseValue :: Parser Value
+parseValue = try (DoubleVal <$> (parseInt <|> parseDouble)) <|> (BoolVal <$> parseBool)
   where
-    p (y:ys)
-      | y == x = Right (x, ys)
-      | otherwise = Left [Unexpected y]
-    p [] = Left [Empty]
+    parseDouble = signed sc $ lexeme sc float
+    parseInt = signed sc $ lexeme sc (fromIntegral <$> decimal)
+    parseBool = lexeme sc ((True <$ string "true") <|> (False <$ string "false"))
 
-spanP :: (Char -> Bool) -> Parser Char e String
-spanP f =
-  Parser $ \input ->
-    let (token, rest) = span f input
-      in Right (token, rest)
+reserved :: [String]
+reserved = ["True", "False", "sqrt", "log", "!"]
 
-notNull :: Parser a e [a] -> Parser a e [a]
-notNull (Parser p) =
-  Parser $ \input -> do
-    (xs, rest) <- p input
-    if null xs
-      then Left [Empty]
-      else Right (xs, rest)
+parseVar :: Parser Expr
+parseVar = do
+  var <- lexeme sc (some letterChar)
+  guard (var `notElem` reserved)
+  return $ Var var
 
-whiteSpace :: Parser Char e String
-whiteSpace = spanP isSpace
+parseKeyword :: Parser Expr
+parseKeyword = choice
+  [ Lit (BoolVal True) <$ lexeme sc (string "True")
+  , Lit (BoolVal False) <$ lexeme sc (string "False")
+  , UnOp <$> symbol "!" <*> parseFactor
+  , UnOp <$> symbol "sqrt" <* symbol "(" <*> parseExpr <* symbol ")"
+  , UnOp <$> symbol "log" <* symbol "(" <*> parseExpr <* symbol ")"
+  ]
 
-string :: Eq i => [i] -> Parser i e [i]
-string = traverse char
+parseFactor :: Parser Expr
+parseFactor = parseParen <|> parseLit <|> try parseKeyword <|> parseVar
+  where
+    parseParen = between (symbol "(") (symbol ")") parseExpr
+    parseLit = Lit <$> parseValue
 
-bool :: (Eq e) => Parser Char e Bool
-bool = string "True" *> pure True <|> string "False" *> pure False
+parseTerm :: Parser Expr
+parseTerm = makeExprParser parseFactor termTable
+  where
+    termTable = [ [ InfixL (BinOp <$> symbol "*")
+                 , InfixL (BinOp <$> symbol "/")
+                 ]
+               ]
 
-double :: Parser Char e Double
-double = do
-  natural <- whiteSpace *> notNull (spanP isDigit)
-  _ <- string "."
-  decimal <- notNull (spanP isDigit) <* whiteSpace
-  return $ read (natural ++ "." ++ decimal)
+parseArith :: Parser Expr
+parseArith = makeExprParser parseTerm arithTable
+  where
+    arithTable = [ [ InfixL (BinOp <$> symbol "+")
+                  , InfixL (BinOp <$> symbol "-")
+                  ]
+                ]
 
-int :: Parser Char e Double
-int = whiteSpace *> (read <$> notNull (spanP isDigit)) <* whiteSpace
-
-exprVar :: Parser Char e Expr
-exprVar = Var <$> (whiteSpace *> notNull vs <* whiteSpace)
-  where vs = spanP isLetter
-
-valueParser :: (Eq e) => Parser Char e Value
-valueParser = DoubleVal <$> (double <|> int) <|> BoolVal <$> bool
-
-exprLit :: (Eq e) => Parser Char e Expr
-exprLit = Lit <$> valueParser
-
-exprParen :: (Eq e) => Parser Char e Expr
-exprParen = whiteSpace *> char '(' *> expr <* char ')' <* whiteSpace
-
-exprAddSub :: (Eq e) => Parser Char e Expr
-exprAddSub = do
-  left <- exprTerm
-  operator <- string "+" <|> string "-"
-  BinOp operator left <$> expr
-
-exprTerm :: (Eq e) => Parser Char e Expr
-exprTerm = exprMulDiv <|> exprFactor
-
-exprMulDiv :: (Eq e) => Parser Char e Expr
-exprMulDiv = do
-  left <- exprFactor
-  operator <- string "*" <|> string "/"
-  BinOp operator left <$> exprTerm
-
-exprUnOp :: (Eq e) => Parser Char e Expr
-exprUnOp = do
-  operator <- string "sqrt" <|> string "log" <|> string "!"
-  UnOp operator <$> exprParen
-
-exprFactor :: (Eq e) => Parser Char e Expr
-exprFactor = exprParen <|> exprUnOp <|> exprLit <|> exprVar
-
-expr :: (Eq e) => Parser Char e Expr
-expr = exprAddSub <|> exprTerm
+parseExpr :: Parser Expr
+parseExpr = makeExprParser parseArith exprTable
+  where
+    exprTable = [ [ InfixL (BinOp <$> symbol "==")
+                 , InfixL (BinOp <$> symbol "!=")
+                 ]
+               ]

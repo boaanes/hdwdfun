@@ -1,23 +1,23 @@
 module Main
-    ( computePlan
-    , main
+    ( main
     ) where
-import           Algs                (concatExprsInMethodList, getLabels,
-                                      methodsToEnforce, plan)
-import           Control.Applicative ((<|>))
+import           Algs                  (concatExprsInMethodList, getLabels,
+                                        methodsToEnforce, plan)
+import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
-import           Data.Foldable       (traverse_)
-import           Data.List           (intercalate)
-import           Data.Map            (Map)
-import qualified Data.Map            as Map
-import           HotDrink            (Constraint (..), VertexType, eval,
-                                      methodToGraph)
-import           MethodParser        (Expr (..), Parser (runParser), Value (..),
-                                      expr)
-import           PrettyPrinter       (prettyPrintConstraint)
+import           Data.Foldable         (traverse_)
+import           Data.List             (intercalate)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           HotDrink              (Constraint (..), VertexType, eval,
+                                        methodToGraph)
+import           MethodParser          (Expr (..), Value (..), parseExpr)
+import           PrettyPrinter         (prettyPrintConstraint)
 import           System.IO
-import           Text.Read           (readMaybe)
+import           Text.Megaparsec       (parse)
+import           Text.Megaparsec.Error (errorBundlePretty)
+import           Text.Read             (readMaybe)
 
 data ConstraintSystem
   = ConstraintSystem
@@ -118,15 +118,12 @@ inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
     putStrLn $ "Enter expression for " ++ name ++ ":"
     input <- prompt
-    case runParser (expr :: Parser Char String Expr) input of
-        Right (e, "") -> do
+    case parse parseExpr "" input of
+        Right e -> do
             liftIO $ putStrLn "Parse success"
             return (name, e)
-        Right (_, trail) -> do
-            putStrLn $ "Parse error at: '" ++ trail ++ "'"
-            inputExpr name
-        Left err -> do
-            putStrLn $ "Parse error: " ++ show err
+        Left bundle -> do
+            putStr (errorBundlePretty bundle)
             inputExpr name
 
 inputMethod :: StateT ConstraintSystem IO ()
@@ -158,6 +155,7 @@ userInputLoop = do
     processInput input
     unless (input == "exit") userInputLoop
 
+
 testVars :: Map String (Maybe Value)
 testVars = Map.fromList [("w", Just (DoubleVal 10)), ("h", Just (DoubleVal 10)), ("a", Just (DoubleVal 100)), ("p", Just (DoubleVal 40))]
 
@@ -181,5 +179,5 @@ main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem testVars testCons testOrder)
+    evalStateT userInputLoop (ConstraintSystem Map.empty [] [])
     putStrLn "Goodbye"

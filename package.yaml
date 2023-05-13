@@ -29,6 +29,9 @@ dependencies:
 - time
 - mtl
 - safe
+- megaparsec
+- text
+- parser-combinators
 
 ghc-options:
 - -Wall
