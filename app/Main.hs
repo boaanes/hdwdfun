@@ -26,14 +26,14 @@ data ConstraintSystem
       , strength    :: [String]
       }
 
-parseValue :: String -> Maybe Value
-parseValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
+readValue :: String -> Maybe Value
+readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
 
 processInput :: String -> StateT ConstraintSystem IO ()
 processInput input = do
     case words input of
         ["var", var, val] -> do
-            case parseValue val of
+            case readValue val of
                 Nothing -> liftIO $ putStrLn "Couldnt parse the value"
                 Just v -> do
                     modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
@@ -47,7 +47,7 @@ processInput input = do
                     liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the number of methods"
         ["update", var, val] -> do
-            case parseValue val of
+            case readValue val of
                 Nothing -> liftIO $ putStrLn "Couldnt parse the value"
                 Just v -> do
                     modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
