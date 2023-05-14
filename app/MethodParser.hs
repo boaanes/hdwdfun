@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module MethodParser
     ( Expr (..)
@@ -29,32 +30,32 @@ data Expr
   | Lit Value
   deriving (Eq, Ord, Show)
 
-sc :: Parser ()
-sc = void $ takeWhileP (Just "space") (== ' ')
+ws :: Parser ()
+ws = void $ takeWhileP (Just "space") (== ' ')
 
 symbol :: String -> Parser String
-symbol s = sc *> string s <* sc
+symbol s = ws *> string s <* ws
 
 parseValue :: Parser Value
 parseValue = try (DoubleVal <$> (parseInt <|> parseDouble)) <|> (BoolVal <$> parseBool)
   where
-    parseDouble = signed sc $ lexeme sc float
-    parseInt = signed sc $ lexeme sc (fromIntegral <$> decimal)
-    parseBool = lexeme sc ((True <$ string "true") <|> (False <$ string "false"))
+    parseDouble = signed ws $ lexeme ws float
+    parseInt = signed ws $ lexeme ws (fromIntegral @Integer @Double <$> decimal)
+    parseBool = lexeme ws ((True <$ string "true") <|> (False <$ string "false"))
 
 reserved :: [String]
 reserved = ["True", "False", "sqrt", "log", "!"]
 
 parseVar :: Parser Expr
 parseVar = do
-  var <- lexeme sc (some letterChar)
+  var <- lexeme ws (some letterChar)
   guard (var `notElem` reserved)
   return $ Var var
 
 parseKeyword :: Parser Expr
 parseKeyword = choice
-  [ Lit (BoolVal True) <$ lexeme sc (string "True")
-  , Lit (BoolVal False) <$ lexeme sc (string "False")
+  [ Lit (BoolVal True) <$ lexeme ws (string "True")
+  , Lit (BoolVal False) <$ lexeme ws (string "False")
   , UnOp <$> symbol "!" <*> parseFactor
   , UnOp <$> symbol "sqrt" <* symbol "(" <*> parseExpr <* symbol ")"
   , UnOp <$> symbol "log" <* symbol "(" <*> parseExpr <* symbol ")"
