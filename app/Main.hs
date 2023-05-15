@@ -1,12 +1,15 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 module Main
-    ( main
+    ( ConstraintSystem (..)
+    , main
     ) where
 import           Algs                  (concatExprsInMethodList, getLabels,
                                         methodsToEnforce, plan)
 import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
-import           Data.Foldable         (traverse_)
+import           Data.Foldable ( traverse_, find )
 import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
@@ -19,12 +22,17 @@ import           Text.Megaparsec       (parse)
 import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
 
-data ConstraintSystem
-  = ConstraintSystem
-      { variables   :: Map String (Maybe Value)
+data Component
+  = Component
+      { identifier  :: Int
+      , variables   :: Map String (Maybe Value)
       , constraints :: [Constraint]
       , strength    :: [String]
       }
+    deriving (Show)
+
+data ConstraintSystem where
+  ConstraintSystem :: {components :: [Component]} -> ConstraintSystem deriving (Show)
 
 readValue :: String -> Maybe Value
 readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
@@ -32,48 +40,68 @@ readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
 processInput :: String -> StateT ConstraintSystem IO ()
 processInput input = do
     case words input of
-        ["var", var, val] -> do
+        ["comp"] -> do
+            addEmptyComponent
+            liftIO $ putStrLn "Added component"
+        ["var", ident, var, val] -> do
             case readValue val of
                 Nothing -> liftIO $ putStrLn "Couldnt parse the value"
                 Just v -> do
-                    modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
-                    modify $ \s -> s { strength = var : strength s }
+                    addVariableToComponent (read ident) var (Just v)
+                    prependStrengthToComponent (read ident) var
                     liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
-        ["constr", nMethodsStr] -> do
-            case (reads nMethodsStr :: [(Int, String)]) of
-                [(n, "")] -> do
-                    modify $ \s -> s { constraints = Constraint [] : constraints s }
-                    traverse_ (const inputMethod) [1..n]
+        ["constr", ident, nMethodsStr] -> do
+            case (readMaybe ident, readMaybe nMethodsStr) of
+                (Just i, Just n) -> do
+                    addEmptyConstraintToComponent i
+                    traverse_ (\_ -> inputMethod i) [1..n]
                     liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
-                _ -> liftIO $ putStrLn "Couldnt parse the number of methods"
-        ["update", var, val] -> do
-            case readValue val of
-                Nothing -> liftIO $ putStrLn "Couldnt parse the value"
-                Just v -> do
-                    modify $ \s -> s { variables = Map.insert var (Just v) (variables s) }
-                    modify $ \s -> s { strength = var : filter (/= var) (strength s) }
+                _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
+        ["update", ident, var, val] -> do
+            case (readMaybe ident, readValue val) of
+                (Just n, Just v) -> do
+                    addVariableToComponent n var (Just v)
+                    modifyStrengthOfComponent n var
                     liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
-        ["delete", var] -> do
-            modify $ \s -> s { variables = Map.delete var (variables s) }
-            liftIO $ putStrLn $ "Deleted variable: " ++ var
-        ["show", "var"] -> do
-            vars <- gets variables
-            liftIO $ mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) (Map.toList vars)
-        ["show", "var", x] -> do
-            vars <- gets variables
-            let val = Map.lookup x vars
-            maybe (liftIO $ putStrLn $ "Variable '" ++ x ++ "' not found") (liftIO . putStrLn . (x ++) . (" = " ++) . show) val
-        ["show", "constr"] -> do
-            cons <- gets constraints
-            liftIO $ putStrLn $ intercalate ("\n" <> replicate 30 '-' <> "\n") $ map prettyPrintConstraint cons
-        ["show", "strength"] -> do
-            stay <- gets strength
-            liftIO $ putStrLn $ intercalate ", " stay
-        ["show", "plan"] -> do
-            cons <- gets constraints
-            st <- gets strength
-            maybe (liftIO $ putStrLn "No plan found") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan st cons)
-        ["run"] -> enforcePlan
+                _ -> liftIO $ putStrLn "Couldnt parse id or the value"
+        ["delete", ident, var] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    deleteVariableFromComponent n var
+                    liftIO $ putStrLn $ "Deleted variable: " ++ var
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["delete", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    deleteComponent n
+                    liftIO $ putStrLn "Deleted component"
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "comp"] -> showComponents
+        ["show", "var", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    showVariablesOfComponent n
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "constr", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    showConstraintsOfComponent n
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "strength", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    showStrengthOfComponent n
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "plan", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    showPlanOfComponent n
+                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["run", ident] ->
+            case readMaybe ident of
+                (Just n) -> do
+                    enforcePlan n
+                _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
             liftIO $ putStrLn "var <name> <value> - add a variable"
@@ -91,27 +119,99 @@ processInput input = do
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
 
+addEmptyComponent :: StateT ConstraintSystem IO ()
+addEmptyComponent = do
+    modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
+
+deleteComponent :: Int -> StateT ConstraintSystem IO ()
+deleteComponent i = do
+    modify $ \s -> s { components = filter (\c -> identifier c /= i) (components s) }
+
+showComponents :: StateT ConstraintSystem IO ()
+showComponents = do
+    cs <- gets components
+    liftIO $ putStrLn $ "Components: " ++ intercalate ", " (map (show . identifier) cs)
+
+addVariableToComponent :: Int -> String -> Maybe Value -> StateT ConstraintSystem IO ()
+addVariableToComponent i name val = do
+    modify $ \s -> s { components = map (\c -> if identifier c == i then c { variables = Map.insert name val (variables c) } else c) (components s) }
+
+deleteVariableFromComponent :: Int -> String -> StateT ConstraintSystem IO ()
+deleteVariableFromComponent i name = do
+    modify $ \s -> s { components = map (\c -> if identifier c == i then c { variables = Map.delete name (variables c) } else c) (components s) }
+
+prependStrengthToComponent :: Int -> String -> StateT ConstraintSystem IO ()
+prependStrengthToComponent i name = do
+    modify $ \s -> s { components = map (\c -> if identifier c == i then c { strength = name : filter (/= name) (strength c) } else c) (components s) }
+
+modifyStrengthOfComponent :: Int -> String -> StateT ConstraintSystem IO ()
+modifyStrengthOfComponent i name = do
+    modify $ \s -> s { components = map (\c -> if identifier c == i then c { strength = name : filter (/= name) (strength c) } else c) (components s) }
+
+addEmptyConstraintToComponent :: Int -> StateT ConstraintSystem IO ()
+addEmptyConstraintToComponent i = do
+    modify $ \s -> s { components = map (\c -> if identifier c == i then c { constraints = Constraint [] : constraints c } else c) (components s) }
+
+showVariablesOfComponent :: Int -> StateT ConstraintSystem IO ()
+showVariablesOfComponent i = do
+    cs <- gets components
+    let comp = find (\c -> identifier c == i) cs
+    maybe (liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found") (liftIO . mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) . Map.toList . variables) comp
+
+showConstraintsOfComponent :: Int -> StateT ConstraintSystem IO ()
+showConstraintsOfComponent i = do
+    cs <- gets components
+    let comp = find (\c -> identifier c == i) cs
+    maybe (liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found") (liftIO . mapM_ (\c -> putStrLn $ prettyPrintConstraint c ++ "\n" ++ replicate 80 '-') . constraints) comp
+
+showStrengthOfComponent :: Int -> StateT ConstraintSystem IO ()
+showStrengthOfComponent i = do
+    cs <- gets components
+    let comp = find (\c -> identifier c == i) cs
+    maybe (liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found") (liftIO . mapM_ putStrLn . strength) comp
+
+showPlanOfComponent :: Int -> StateT ConstraintSystem IO ()
+showPlanOfComponent i = do
+    cs <- gets components
+    let comp = find (\c -> identifier c == i) cs
+    case comp of
+        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Just c -> do
+            liftIO $ putStrLn $ "Strength: " ++ show (strength c)
+            liftIO $ putStrLn $ "Constraints: " ++ show (constraints c)
+            maybe (liftIO $ putStrLn $ "No plan found" ++ show i ++ " not found") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
+
 computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
-computePlan stay cons = methodsToEnforce $ plan order $ mconcat cons
+computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
   where
     order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
 
-enforcePlan :: StateT ConstraintSystem IO ()
-enforcePlan = do
-    cons <- gets constraints
-    st <- gets strength
-    maybe
-        (liftIO $ putStrLn "No plan found")
-        (\m -> do
-            enforce (concatExprsInMethodList m)
-            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m)
-        ) (computePlan st cons)
+enforcePlan :: Int -> StateT ConstraintSystem IO ()
+enforcePlan i = do
+    comps <- gets components
+    let comp = find (\c -> identifier c == i) comps
+    case comp of
+        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Just c -> do
+            let st = strength c
+            let cs = constraints c
+            maybe
+                (liftIO $ putStrLn "No plan found")
+                (\m -> do
+                    enforce i (concatExprsInMethodList m)
+                    liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m)
+                ) (computePlan st cs)
 
-enforce :: [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforce = traverse_ (\(name, e) -> do
-    vars <- gets variables
-    let newVal = eval e vars
-    modify $ \s -> s { variables = Map.insert name newVal (variables s) }
+enforce :: Int -> [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforce i = Data.Foldable.traverse_ (\(name, e) -> do
+    comps <- gets components
+    let comp = find (\c -> identifier c == i) comps
+    case comp of
+        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Just c -> do
+            let vars = variables c
+            let newVal = eval e vars
+            modify $ \s -> s { components = map (\c' -> if identifier c' == i then c' { variables = Map.insert name newVal (variables c) } else c) (components s) }
     )
 
 inputExpr :: String -> IO (String, Expr)
@@ -126,8 +226,8 @@ inputExpr name = do
             putStr (errorBundlePretty bundle)
             inputExpr name
 
-inputMethod :: StateT ConstraintSystem IO ()
-inputMethod = do
+inputMethod :: Int -> StateT ConstraintSystem IO ()
+inputMethod ident = do
     liftIO $ putStrLn "Enter name of method:"
     name <- liftIO prompt
     liftIO $ putStrLn "Enter space separated input names to method:"
@@ -139,7 +239,7 @@ inputMethod = do
     exprs <- liftIO $ traverse inputExpr outputs
     let method = (name, exprs)
         methodGraph = methodToGraph inputs method
-    modify $ \s -> s { constraints = Constraint (methodGraph : unConstraint (head $ constraints s)) : drop 1 (constraints s) }
+    modify $ \s -> s { components = map (\c -> if identifier c == ident then c { constraints = Constraint (methodGraph : unConstraint (head $ constraints c)) : drop 1 (constraints c) } else c) (components s) }
 
 prompt :: IO String
 prompt = do
@@ -163,10 +263,10 @@ testCons :: [Constraint]
 testCons =
     [ Constraint
         [ methodToGraph ["w", "h"] ("m1", [("a", BinOp "*" (Var "w") (Var "h"))])
-        , methodToGraph ["a"] ("m3", [("w", UnOp "sqrt" (Var "a")), ("h", UnOp "sqrt" (Var "a"))])
+        , methodToGraph ["a"] ("m2", [("w", UnOp "sqrt" (Var "a")), ("h", UnOp "sqrt" (Var "a"))])
         ]
     , Constraint
-        [ methodToGraph ["w", "h"] ("m2", [("p", BinOp "*" (Lit (DoubleVal 2)) (BinOp "+" (Var "w")  (Var "h")))])
+        [ methodToGraph ["w", "h"] ("m3", [("p", BinOp "*" (Lit (DoubleVal 2)) (BinOp "+" (Var "w")  (Var "h")))])
         , methodToGraph ["w", "p"] ("m4", [("h", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "w"))])
         , methodToGraph ["h", "p"] ("m5", [("w", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "h"))])
         ]
@@ -179,5 +279,5 @@ main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem Map.empty [] [])
+    evalStateT userInputLoop (ConstraintSystem [Component 0 testVars testCons testOrder])
     putStrLn "Goodbye"
