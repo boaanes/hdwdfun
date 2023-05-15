@@ -1,6 +1,6 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE RankNTypes       #-}
+{-# LANGUAGE TypeApplications #-}
 module Main
     ( ConstraintSystem (..)
     , main
@@ -10,12 +10,12 @@ import           Algs                  (concatExprsInMethodList, getLabels,
 import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
-import           Data.Foldable ( traverse_, find )
+import           Data.Foldable         (find, traverse_)
 import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
-import           HotDrink              (Constraint (..), VertexType, eval,
-                                        methodToGraph)
+import           HotDrink              (Constraint (..), MethodGraph,
+                                        VertexType, eval, methodToGraph)
 import           MethodParser          (Expr (..), Value (..), parseExpr)
 import           PrettyPrinter         (prettyPrintConstraint)
 import           System.IO
@@ -30,10 +30,14 @@ data Component
       , constraints :: [Constraint]
       , strength    :: [String]
       }
-    deriving (Show, Eq)
+  deriving (Eq, Show)
 
-data ConstraintSystem where
-  ConstraintSystem :: {components :: [Component]} -> ConstraintSystem deriving (Show)
+data ConstraintSystem
+  = ConstraintSystem
+      { components               :: [Component]
+      , intercalatingConstraints :: [Constraint]
+      }
+  deriving (Show)
 
 readValue :: String -> Maybe Value
 readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
@@ -59,10 +63,16 @@ processInput input = do
         ["constr", nMethodsStr] -> do
             case readMaybe @Integer nMethodsStr of
                 Just n -> do
-                    comps <- gets components
-                    traverse_ addEmptyConstraintToComponent  comps
-                    traverse_ (const inputMethod) [1..n]
+                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
+                    modify $ \cs -> cs { components = fmap (\c -> c { constraints = Constraint methodGraphs : constraints c }) (components cs) }
                     liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
+                _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
+        ["inter", nMethodsStr] -> do
+            case readMaybe @Integer nMethodsStr of
+                Just n -> do
+                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
+                    modify $ \cs -> cs { intercalatingConstraints = Constraint methodGraphs : intercalatingConstraints cs }
+                    liftIO $ putStrLn $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
         ["update", ident, var, val] -> do
             case (readMaybe ident, readValue val) of
@@ -99,6 +109,9 @@ processInput input = do
                 (Just n) -> do
                     showConstraintsOfComponent n
                 _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "inter"] -> do
+            cs <- gets intercalatingConstraints
+            liftIO $ putStrLn $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
         ["show", "strength", ident] -> do
             comps <- gets components
             let comp = find (\c -> identifier c == read ident) comps
@@ -158,10 +171,6 @@ modifyStrengthOfComponent :: Component -> String -> StateT ConstraintSystem IO (
 modifyStrengthOfComponent component name = do
     modify $ \s -> s { components = map (\c -> if c == component then c { strength = name : filter (/= name) (strength c) } else c) (components s) }
 
-addEmptyConstraintToComponent :: Component -> StateT ConstraintSystem IO ()
-addEmptyConstraintToComponent component = do
-    modify $ \s -> s { components = map (\c -> if c == component then c { constraints = Constraint [] : constraints c } else c) (components s) }
-
 showVariablesOfComponent :: Int -> StateT ConstraintSystem IO ()
 showVariablesOfComponent i = do
     cs <- gets components
@@ -187,7 +196,7 @@ showPlanOfComponent i = do
         Just c -> do
             liftIO $ putStrLn $ "Strength: " ++ show (strength c)
             liftIO $ putStrLn $ "Constraints: " ++ show (constraints c)
-            maybe (liftIO $ putStrLn $ "No plan found" ++ show i ++ " not found") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
+            maybe (liftIO $ putStrLn $ "No plan found for component '" ++ show i ++ "'") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
 
 computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
 computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
@@ -236,7 +245,7 @@ inputExpr name = do
             putStr (errorBundlePretty bundle)
             inputExpr name
 
-inputMethod :: StateT ConstraintSystem IO ()
+inputMethod :: IO MethodGraph
 inputMethod = do
     liftIO $ putStrLn "Enter name of method:"
     name <- liftIO prompt
@@ -249,7 +258,7 @@ inputMethod = do
     exprs <- liftIO $ traverse inputExpr outputs
     let method = (name, exprs)
         methodGraph = methodToGraph inputs method
-    modify $ \s -> s { components = map (\c -> c { constraints = Constraint (methodGraph : unConstraint (head $ constraints c)) : drop 1 (constraints c) }) (components s) }
+    return methodGraph
 
 prompt :: IO String
 prompt = do
@@ -289,5 +298,5 @@ main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem [])
+    evalStateT userInputLoop (ConstraintSystem [] [])
     putStrLn "Goodbye"
