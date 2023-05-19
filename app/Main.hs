@@ -14,6 +14,7 @@ import           Data.Foldable         (find, traverse_)
 import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
+import           Data.Maybe            (fromMaybe)
 import           HotDrink              (Constraint (..), MethodGraph,
                                         VertexType, eval, methodToGraph)
 import           MethodParser          (Expr (..), Value (..), parseExpr)
@@ -53,6 +54,16 @@ processInput input = do
                    let lastComp = last comps
                    modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
             liftIO $ putStrLn "Added component"
+        ["list", nCompsStr] -> do
+            comps <- gets components
+            if null comps
+                then case readMaybe @Int nCompsStr of
+                    Just n -> do
+                        let newComps = fmap (\i -> Component i Map.empty [] []) [0..n-1]
+                        modify $ \cs -> cs { components = newComps }
+                        liftIO $ putStrLn $ "Added " ++ nCompsStr ++ " components"
+                    _ -> liftIO $ putStrLn "Couldnt parse the number of components"
+                else liftIO $ putStrLn "There are already components defined"
         ["var", var, val] -> do
             case readValue val of
                 Nothing -> liftIO $ putStrLn "Couldnt parse the value"
@@ -61,16 +72,16 @@ processInput input = do
                     traverse_ (\c -> addVariableToComponent c var (Just v)) comps
                     liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
         ["constr", nMethodsStr] -> do
-            case readMaybe @Integer nMethodsStr of
+            case readMaybe @Int nMethodsStr of
                 Just n -> do
-                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
+                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { components = fmap (\c -> c { constraints = Constraint methodGraphs : constraints c }) (components cs) }
                     liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
         ["inter", nMethodsStr] -> do
-            case readMaybe @Integer nMethodsStr of
+            case readMaybe @Int nMethodsStr of
                 Just n -> do
-                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
+                    methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { intercalatingConstraints = Constraint methodGraphs : intercalatingConstraints cs }
                     liftIO $ putStrLn $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
@@ -131,16 +142,21 @@ processInput input = do
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
-            liftIO $ putStrLn "var <name> <value> - add a variable"
-            liftIO $ putStrLn "constr <n> - add a constraint with n methods"
-            liftIO $ putStrLn "update <name> <value> - update a variable"
-            liftIO $ putStrLn "delete <name> - delete a variable"
-            liftIO $ putStrLn "show var - show all variables"
-            liftIO $ putStrLn "show var <name> - show variable with a given name"
-            liftIO $ putStrLn "show constr - show all constraints"
-            liftIO $ putStrLn "show strength - show the current strength of variables in descending order"
-            liftIO $ putStrLn "show plan - show the plan to be computed based on the current strength"
-            liftIO $ putStrLn "run - enforce the current plan"
+            liftIO $ putStrLn "comp - add a component"
+            liftIO $ putStrLn "list <n> - add n components"
+            liftIO $ putStrLn "var <var> <val> - add a variable to all components"
+            liftIO $ putStrLn "constr <n> - add a constraint with n methods to all components"
+            liftIO $ putStrLn "inter <n> - add an intercalating constraint with n methods"
+            liftIO $ putStrLn "update <id> <var> <val> - update a variable of a component"
+            liftIO $ putStrLn "delete <id> <var> - delete a variable from a component"
+            liftIO $ putStrLn "delete <id> - delete a component"
+            liftIO $ putStrLn "show comp - show all components"
+            liftIO $ putStrLn "show var <id> - show all variables of a component (all components have the same set of variables)"
+            liftIO $ putStrLn "show constr <id> - show all constraints of a component (all components have the same set of constraints)"
+            liftIO $ putStrLn "show inter - show all intercalating constraints"
+            liftIO $ putStrLn "show strength <id> - show the strength of the variables of a component"
+            liftIO $ putStrLn "show plan <id> - show the current plan of a component"
+            liftIO $ putStrLn "run <id> - enforce the plan of a component"
             liftIO $ putStrLn "help - show this message"
             liftIO $ putStrLn "exit - exit the program"
         ["exit"] -> return ()
@@ -154,10 +170,13 @@ deleteComponent :: Int -> StateT ConstraintSystem IO ()
 deleteComponent i = do
     modify $ \s -> s { components = filter (\c -> identifier c /= i) (components s) }
 
+showComponent :: Component -> String
+showComponent c = "Component " ++ show (identifier c) ++ ": " ++ "\n" ++ intercalate "\n" (map (\(k, v) -> k ++ " = " ++ show v) (Map.toList (variables c)))
+
 showComponents :: StateT ConstraintSystem IO ()
 showComponents = do
-    cs <- gets components
-    liftIO $ putStrLn $ "Components: " ++ intercalate ", " (map (show . identifier) cs)
+    comps <- gets components
+    liftIO $ putStrLn $ intercalate "\n\n" $ fmap showComponent comps
 
 addVariableToComponent :: Component -> String -> Maybe Value -> StateT ConstraintSystem IO ()
 addVariableToComponent component name val = do
@@ -215,10 +234,8 @@ enforcePlan i = do
             maybe
                 (liftIO $ putStrLn "No plan found")
                 (\m -> do
-                    liftIO $ print m
-                    liftIO $ putStrLn "am at here"
                     enforce i (concatExprsInMethodList m)
-                    liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m)
+                    liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show i
                 ) (computePlan st cs)
 
 enforce :: Int -> [(String, Expr)] -> StateT ConstraintSystem IO ()
