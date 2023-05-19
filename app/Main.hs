@@ -140,6 +140,12 @@ processInput input = do
                 (Just n) -> do
                     enforcePlan n
                 _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["run", "inter", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    comps <- gets components
+                    traverse_ (\i -> enforcePlan i >> enforceIntercalatingConstraint i) [n..length comps - 1]
+                _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
             liftIO $ putStrLn "comp - add a component"
@@ -157,6 +163,7 @@ processInput input = do
             liftIO $ putStrLn "show strength <id> - show the strength of the variables of a component"
             liftIO $ putStrLn "show plan <id> - show the current plan of a component"
             liftIO $ putStrLn "run <id> - enforce the plan of a component"
+            liftIO $ putStrLn "run inter <id> - satisfy the whole constraint system from the given component to the end"
             liftIO $ putStrLn "help - show this message"
             liftIO $ putStrLn "exit - exit the program"
         ["exit"] -> return ()
@@ -249,6 +256,21 @@ enforce i = traverse_ (\(name, e) -> do
                 newVal = eval e vars
             modify $ \s -> s { components = map (\c' -> if identifier c' == i then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
     )
+
+enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
+enforceIntercalatingConstraint i = do
+    comps <- gets components
+    inter <- gets intercalatingConstraints
+    let comp = find (\c -> identifier c == i) comps
+    case comp of
+        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Just c -> do
+            let fromVars = variables c
+                mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] $ mconcat inter
+                newVals = map (\(name, e) -> (name, eval e fromVars)) mte
+            modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
+            liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
+
 
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
