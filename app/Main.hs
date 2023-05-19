@@ -139,13 +139,19 @@ processInput input = do
         ["run", ident] ->
             case readMaybe ident of
                 (Just n) -> do
-                    satisfy n
+                    comps <- gets components
+                    let comp = find (\c -> identifier c == n) comps
+                    case comp of
+                        (Just c) -> do
+                            satisfy c
+                            liftIO $ putStrLn "Satisfied"
+                        _ -> liftIO $ putStrLn "Couldnt find component"
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["run", "inter", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
                     comps <- gets components
-                    traverse_ (\i -> satisfy i >> enforceIntercalatingConstraint i) [n..length comps - 1]
+                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ drop n comps
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
@@ -225,37 +231,27 @@ showPlanOfComponent i = do
             liftIO $ putStrLn $ "Constraints: " ++ show (constraints c)
             maybe (liftIO $ putStrLn $ "No plan found for component '" ++ show i ++ "'") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
 
-satisfy :: Int -> StateT ConstraintSystem IO ()
-satisfy i = do
-    comps <- gets components
-    let comp = find (\c -> identifier c == i) comps
-    case comp of
-        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
-        Just c -> do
-            let st = strength c
-            let cs = constraints c
-            maybe
-                (liftIO $ putStrLn "No plan found")
-                (\m -> do
-                    enforceMethods i (concatExprsInMethodList m)
-                    liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show i
-                ) (computePlan st cs)
+satisfy :: Component -> StateT ConstraintSystem IO ()
+satisfy c = do
+    let st = strength c
+    let cs = constraints c
+    maybe
+        (liftIO $ putStrLn "No plan found")
+        (\m -> do
+            enforceMethods c (concatExprsInMethodList m)
+            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
+        ) (computePlan st cs)
 
 computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
 computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
   where
     order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
 
-enforceMethods :: Int -> [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforceMethods i = traverse_ (\(name, e) -> do
-    comps <- gets components
-    let comp = find (\c -> identifier c == i) comps
-    case comp of
-        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
-        Just c -> do
-            let vars = variables c
-                newVal = eval e vars
-            modify $ \s -> s { components = map (\c' -> if identifier c' == i then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
+enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforceMethods c = traverse_ (\(name, e) -> do
+    let vars = variables c
+        newVal = eval e vars
+    modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
     )
 
 enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
