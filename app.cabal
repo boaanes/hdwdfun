@@ -53,6 +53,7 @@ executable app-exe
       MethodParser
       PrettyPrinter
       WarmDrink
+      Agenda
       Conf
       Whap
       Paths_app

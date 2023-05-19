@@ -2,7 +2,8 @@
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE TypeApplications #-}
 module Main
-    ( ConstraintSystem (..)
+    ( Component (..)
+    , ConstraintSystem (..)
     , main
     ) where
 import           Algs                  (concatExprsInMethodList, getLabels,
@@ -10,7 +11,7 @@ import           Algs                  (concatExprsInMethodList, getLabels,
 import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
-import           Data.Foldable         (find, traverse_)
+import           Data.Foldable         (find, foldl', traverse_)
 import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
@@ -138,13 +139,13 @@ processInput input = do
         ["run", ident] ->
             case readMaybe ident of
                 (Just n) -> do
-                    enforcePlan n
+                    satisfy n
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["run", "inter", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
                     comps <- gets components
-                    traverse_ (\i -> enforcePlan i >> enforceIntercalatingConstraint i) [n..length comps - 1]
+                    traverse_ (\i -> satisfy i >> enforceIntercalatingConstraint i) [n..length comps - 1]
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
@@ -224,13 +225,8 @@ showPlanOfComponent i = do
             liftIO $ putStrLn $ "Constraints: " ++ show (constraints c)
             maybe (liftIO $ putStrLn $ "No plan found for component '" ++ show i ++ "'") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
 
-computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
-computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
-  where
-    order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
-
-enforcePlan :: Int -> StateT ConstraintSystem IO ()
-enforcePlan i = do
+satisfy :: Int -> StateT ConstraintSystem IO ()
+satisfy i = do
     comps <- gets components
     let comp = find (\c -> identifier c == i) comps
     case comp of
@@ -241,12 +237,17 @@ enforcePlan i = do
             maybe
                 (liftIO $ putStrLn "No plan found")
                 (\m -> do
-                    enforce i (concatExprsInMethodList m)
+                    enforceMethods i (concatExprsInMethodList m)
                     liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show i
                 ) (computePlan st cs)
 
-enforce :: Int -> [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforce i = traverse_ (\(name, e) -> do
+computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
+computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
+  where
+    order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
+
+enforceMethods :: Int -> [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforceMethods i = traverse_ (\(name, e) -> do
     comps <- gets components
     let comp = find (\c -> identifier c == i) comps
     case comp of
@@ -271,6 +272,16 @@ enforceIntercalatingConstraint i = do
             modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
             liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
+applyIntercalatingConstraint :: Constraint -> (Component, Component) -> Component
+applyIntercalatingConstraint cs (c1, c2) =
+    let vars1 = variables c1
+        mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] cs
+        newVals = map (\(name, e) -> (name, eval e vars1)) mte
+    in c2 { variables = Map.union (Map.fromList newVals) (variables c2) }
+
+applyAllInterclatingConstraints :: [Constraint] -> (Component, Component) -> Component
+applyAllInterclatingConstraints inters comps =
+    foldl' (\c cs -> applyIntercalatingConstraint cs (c, snd comps)) (fst comps) inters
 
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
