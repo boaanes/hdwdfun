@@ -7,7 +7,7 @@ cabal-version: 1.12
 name:           app
 version:        1.0.0.0
 synopsis:       Functional implementation of both a multiway dataflow constraint systems engine in haskell, inspired by HotDrink, as well as an implementation of of my own interpretation of the WarmDrink specification.
-description:    Please see the README on GitHub at <https://github.com/githubuser/app#readme>
+description:    Please see the README on GitHub at <https://github.com/boaanes/master#readme>
 category:       CLI
 homepage:       https://github.com/boaanes/master#readme
 bug-reports:    https://github.com/boaanes/master/issues
