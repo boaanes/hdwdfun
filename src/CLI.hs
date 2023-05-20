@@ -1,9 +1,31 @@
 {-# LANGUAGE GADTs            #-}
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE TypeApplications #-}
+
+-----------------------------------------------------------------------------
+-- |
+-- Module     : CLI
+-- Copyright  : (c) Bo Aanes 2022-2023
+-- License    : BSD3
+-- Maintainer : boaanes@gmail.com
+-- Stability  : experimental
+--
+-- This module contains the CLI that combines the functionality of the
+-- HotDrinkF and WarmDrinkF engines.
+--
+-- The CLI is implemented as a state machine, where the state is a
+-- 'ConstraintSystem' and the state transitions are the commands that the user
+-- can enter.
+--
+-- The CLI is implemented using the 'StateT' monad transformer, which allows
+-- us to use the 'StateT' monad to keep track of the state of the CLI, while
+-- also being able to use the 'IO' monad to perform IO actions.
+-----------------------------------------------------------------------------
+
 module CLI
     ( userInputLoop
     ) where
+
 import           AST                   (Expr (..), Value (..), parseExpr)
 import           Algs                  (computePlan, concatExprsInMethodList,
                                         getLabels, methodsToEnforce, plan)
@@ -23,27 +45,34 @@ import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
 import           WarmDrinkF            (Component (..), ConstraintSystem (..))
 
---- Pure helpers ---
-
+-- | A helper function for safely getting the head of a list.
+--   If the list is empty, returns Nothing.
 safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
 
+-- | Adds a variable and its value to a component's variables map, and updates its strength list.
+--   If the variable already exists in the map, its value is updated.
 addVariableToComponent :: String -> Maybe Value -> Component -> Component
 addVariableToComponent name val component =
   component { variables = Map.insert name val (variables component)
             , strength = name : filter (/= name) (strength component)
             }
 
+-- | Reads a string into a Maybe Value (either a DoubleVal or a BoolVal).
 readValue :: String -> Maybe Value
 readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
 
+-- | Removes a variable and its value from a component's variables map, and updates its strength list.
 deleteVariableFromComponent :: String -> Component -> Component
 deleteVariableFromComponent name component =
   component { variables = Map.delete name (variables component)
             , strength = filter (/= name) (strength component)
             }
 
+-- | Applies a single intercalating constraint to a pair of components.
+--   Evaluates the expressions in the constraint's methodsToEnforce in the first component's variable map,
+--   and uses the results to set values in the second component's variable map.
 applyIntercalatingConstraint :: Constraint -> (Component, Component) -> Component
 applyIntercalatingConstraint cs (c1, c2) =
     let vars1 = variables c1
@@ -51,12 +80,15 @@ applyIntercalatingConstraint cs (c1, c2) =
         newVals = map (\(name, e) -> (name, eval e vars1)) mte
     in c2 { variables = Map.union (Map.fromList newVals) (variables c2) }
 
+-- | Applies a list of intercalating constraints to a pair of components, applying them in order.
 applyAllInterclatingConstraints :: [Constraint] -> (Component, Component) -> Component
 applyAllInterclatingConstraints inters comps =
     foldl' (\c cs -> applyIntercalatingConstraint cs (c, snd comps)) (fst comps) inters
 
 --- IO helpers ---
 
+-- | Given an identifier string, attempts to find a component in the constraint system.
+-- Returns the component if found, otherwise returns Nothing.
 findComponent :: String -> StateT ConstraintSystem IO (Maybe Component)
 findComponent ident = do
     comps <- gets components
@@ -64,6 +96,9 @@ findComponent ident = do
         Just identInt -> find (\c -> identifier c == identInt) comps
         Nothing       -> Nothing
 
+-- | Given a component, attempts to satisfy its constraints by computing a plan and enforcing its methods.
+-- If no plan is found, prints "No plan found".
+-- Otherwise, enforces the methods in the plan and prints "Enforced plan: <method labels> on component <identifier>".
 satisfy :: Component -> StateT ConstraintSystem IO ()
 satisfy c = do
     let st = strength c
@@ -75,6 +110,7 @@ satisfy c = do
             liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
         ) (computePlan st cs)
 
+-- | Given a component and a list of method-name-and-expr pairs, updates the component's variables according to the expressions.
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
 enforceMethods c methods = forM_ methods (\(name, e) -> do
     let vars = variables c
@@ -82,7 +118,9 @@ enforceMethods c methods = forM_ methods (\(name, e) -> do
     modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
     )
 
-enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
+-- | Enforce intercalating constraints on a component. Updates the state of the 'ConstraintSystem'.
+enforceIntercalatingConstraint :: Int -- ^ The identifier of the component to enforce intercalating constraints on.
+                               -> StateT ConstraintSystem IO ()
 enforceIntercalatingConstraint i = do
     comps <- gets components
     inter <- gets intercalatingConstraints
@@ -96,7 +134,9 @@ enforceIntercalatingConstraint i = do
             modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
             liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
-inputExpr :: String -> IO (String, Expr)
+-- | Prompts user to input an expression and parses it.
+inputExpr :: String -- ^ Name of the expression to prompt for.
+           -> IO (String, Expr) -- ^ The parsed expression with its corresponding name.
 inputExpr name = do
     putStrLn $ "Enter expression for " ++ name ++ ":"
     input <- prompt
@@ -108,7 +148,8 @@ inputExpr name = do
             putStr (errorBundlePretty bundle)
             inputExpr name
 
-inputMethod :: IO MethodGraph
+-- | Prompts user to input a method and creates a method graph from it.
+inputMethod :: IO MethodGraph -- ^ The created method graph.
 inputMethod = do
     liftIO $ putStrLn "Enter name of method:"
     name <- liftIO prompt

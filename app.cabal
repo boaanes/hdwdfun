@@ -28,12 +28,12 @@ source-repository head
 library
   exposed-modules:
       WarmDrinkF
+      HotDrinkF
       CLI
   other-modules:
       Algs
       AST
       GraphHelpers
-      HotDrinkF
       PrettyPrinter
       TestData
       Paths_app

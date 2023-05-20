@@ -48,6 +48,7 @@ library:
   source-dirs: src
   exposed-modules:
     - WarmDrinkF
+    - HotDrinkF
     - CLI
 
 executables:
