@@ -69,7 +69,7 @@ satisfy c = do
         ) (computePlan st cs)
 
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforceMethods c = traverse_ (\(name, e) -> do
+enforceMethods c methods = forM_ methods (\(name, e) -> do
     let vars = variables c
         newVal = eval e vars
     modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
@@ -135,8 +135,9 @@ processInput input = do
             if null comps
                 then case readMaybe @Int nCompsStr of
                     Just n -> do
-                        let newComps = fmap (\i -> Component i Map.empty [] []) [0..n-1]
-                        modify $ \cs -> cs { components = newComps }
+                        replicateM_ n $ do
+                            let newComp = Component (length comps) Map.empty [] []
+                            modify $ \cs -> cs { components = components cs ++ [newComp] }
                         liftIO $ putStrLn $ "Added " ++ nCompsStr ++ " components"
                     _ -> liftIO $ putStrLn "Couldnt parse the number of components"
                 else liftIO $ putStrLn "There are already components defined"
@@ -234,7 +235,7 @@ processInput input = do
             case readMaybe ident of
                 (Just n) -> do
                     comps <- gets components
-                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ drop n comps
+                    forM_ (drop n comps) $ \c -> satisfy c >> enforceIntercalatingConstraint (identifier c)
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
