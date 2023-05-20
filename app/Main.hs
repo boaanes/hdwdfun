@@ -12,7 +12,6 @@ import           Control.Monad
 import           Control.Monad.State
 import           Data.Foldable         (find, foldl', traverse_)
 import           Data.List             (intercalate)
-import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
 import           HotDrinkF             (Constraint (..), MethodGraph, eval,
@@ -276,32 +275,11 @@ userInputLoop = do
     processInput input
     unless (input == "exit") userInputLoop
 
---- Test data ---
-
-testVars :: Map String (Maybe Value)
-testVars = Map.fromList [("w", Just (DoubleVal 10)), ("h", Just (DoubleVal 10)), ("a", Just (DoubleVal 100)), ("p", Just (DoubleVal 40))]
-
-testCons :: [Constraint]
-testCons =
-    [ Constraint
-        [ methodToGraph ["w", "h"] ("m1", [("a", BinOp "*" (Var "w") (Var "h"))])
-        , methodToGraph ["a"] ("m2", [("w", UnOp "sqrt" (Var "a")), ("h", UnOp "sqrt" (Var "a"))])
-        ]
-    , Constraint
-        [ methodToGraph ["w", "h"] ("m3", [("p", BinOp "*" (Lit (DoubleVal 2)) (BinOp "+" (Var "w")  (Var "h")))])
-        , methodToGraph ["w", "p"] ("m4", [("h", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "w"))])
-        , methodToGraph ["h", "p"] ("m5", [("w", BinOp "-" (BinOp "/" (Var "p") (Lit (DoubleVal 2))) (Var "h"))])
-        ]
-    ]
-
-testOrder :: [String]
-testOrder = ["a", "p", "w", "h"]
-
 --- Main function (entry point) ---
 
 main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem [Component 0 testVars testCons testOrder] [])
+    evalStateT userInputLoop (ConstraintSystem [] [])
     putStrLn "Goodbye"

@@ -52,6 +52,7 @@ executable app-exe
       GraphHelpers
       HotDrinkF
       PrettyPrinter
+      TestData
       WarmDrinkF
       Agenda
       Whap
