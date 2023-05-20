@@ -1,20 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Algs where
+module Algs
+    ( plan
+    , methodsToEnforce
+    , getLabels
+    , computePlan
+    , concatExprsInMethodList
+    )
+    where
 
 import           AST
-import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
-import           Data.Foldable                        (fold)
 import           HotDrinkF
-
--- check if constraint is part of another constraint (is subgraph)
-partOf :: Constraint -> Constraint -> Bool
-partOf c = any (`isSubgraphOf` (fold . unConstraint) c) . unConstraint
-
--- check if all given constraints are part of another constraint
-isPartOfAllConstraints :: [Constraint] -> Constraint -> Bool
-isPartOfAllConstraints constraints candidate = all (partOf candidate) constraints
 
 plan :: [Constraint] -> Constraint -> Constraint
 plan [] c = c
@@ -34,13 +31,6 @@ methodsToEnforce _ = Nothing
 getLabels :: Maybe [VertexType] -> [String]
 getLabels (Just vs) = map (\case VertexMet (s, _) -> s; VertexVar s -> s) vs
 getLabels Nothing   = []
-
-getVariables :: Constraint -> [VertexType]
-getVariables (Constraint [x]) =
-    map (\case VertexVar v -> VertexVar v; _ -> error "not a variable")
-    $ filter (\case VertexVar _ -> True; VertexMet _ -> False)
-    $ vertexList x
-getVariables _ = error "not a single constraint"
 
 concatExprsInMethodList :: [VertexType] -> [(String, Expr)]
 concatExprsInMethodList = concatMap (\case VertexMet (_, es) -> es; _ -> error "not a method")
