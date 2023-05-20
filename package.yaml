@@ -1,9 +1,9 @@
 name:                app
-version:             0.1.0.0
-github:              "githubuser/app"
+version:             1.0.0.0
+github:              "boaanes/master"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
+author:              "Bo Aanes"
+maintainer:          "boaanes@gmail.com"
 copyright:           "2022 Author name here"
 
 extra-source-files:
@@ -11,13 +11,15 @@ extra-source-files:
 - CHANGELOG.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            Functional implementation of both a multiway dataflow constraint systems
+                     engine in haskell, inspired by HotDrink, as well as an implementation of
+                     of my own interpretation of the WarmDrink specification.
+category:            CLI
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/app#readme>
+description:         Please see the README on GitHub at <https://github.com/boaanes/master#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -44,29 +46,19 @@ ghc-options:
 
 library:
   source-dirs: src
+  exposed-modules:
+    - WarmDrinkF
+    - CLI
 
 executables:
   app-exe:
     main:                Main.hs
-    source-dirs:
-    - app
-    - app/examples
+    source-dirs:         app
 
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    dependencies:
-    - app
-
-tests:
-  app-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - app

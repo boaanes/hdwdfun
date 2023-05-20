@@ -5,12 +5,14 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           app
-version:        0.1.0.0
+version:        1.0.0.0
+synopsis:       Functional implementation of both a multiway dataflow constraint systems engine in haskell, inspired by HotDrink, as well as an implementation of of my own interpretation of the WarmDrink specification.
 description:    Please see the README on GitHub at <https://github.com/githubuser/app#readme>
-homepage:       https://github.com/githubuser/app#readme
-bug-reports:    https://github.com/githubuser/app/issues
-author:         Author name here
-maintainer:     example@example.com
+category:       CLI
+homepage:       https://github.com/boaanes/master#readme
+bug-reports:    https://github.com/boaanes/master/issues
+author:         Bo Aanes
+maintainer:     boaanes@gmail.com
 copyright:      2022 Author name here
 license:        BSD3
 license-file:   LICENSE
@@ -21,12 +23,19 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/app
+  location: https://github.com/boaanes/master
 
 library
   exposed-modules:
-      Lib
+      WarmDrinkF
+      CLI
   other-modules:
+      Algs
+      AST
+      GraphHelpers
+      HotDrinkF
+      PrettyPrinter
+      TestData
       Paths_app
   hs-source-dirs:
       src
@@ -47,42 +56,10 @@ library
 executable app-exe
   main-is: Main.hs
   other-modules:
-      Algs
-      AST
-      GraphHelpers
-      HotDrinkF
-      PrettyPrinter
-      TestData
-      WarmDrinkF
-      Agenda
-      Whap
       Paths_app
   hs-source-dirs:
       app
-      app/examples
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
-  build-depends:
-      algebraic-graphs
-    , app
-    , base >=4.7 && <5
-    , containers
-    , megaparsec
-    , mtl
-    , parsec
-    , parser-combinators
-    , safe
-    , text
-    , time
-  default-language: Haskell2010
-
-test-suite app-test
-  type: exitcode-stdio-1.0
-  main-is: Spec.hs
-  other-modules:
-      Paths_app
-  hs-source-dirs:
-      test
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs
     , app
