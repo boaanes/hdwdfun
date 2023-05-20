@@ -48,13 +48,12 @@ executable app-exe
   main-is: Main.hs
   other-modules:
       Algs
+      AST
       GraphHelpers
-      HotDrink
-      MethodParser
+      HotDrinkF
       PrettyPrinter
-      WarmDrink
+      WarmDrinkF
       Agenda
-      Conf
       Whap
       Paths_app
   hs-source-dirs:

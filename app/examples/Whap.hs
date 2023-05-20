@@ -24,9 +24,9 @@ module Whap
     , vPerimeter
     , vWidth
     ) where
+import           AST
 import           Algebra.Graph.AdjacencyMap
-import           HotDrink
-import           MethodParser
+import           HotDrinkF
 
 
 m1 :: Method

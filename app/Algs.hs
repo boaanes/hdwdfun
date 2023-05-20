@@ -2,11 +2,11 @@
 
 module Algs where
 
+import           AST
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm (topSort)
 import           Data.Foldable                        (fold)
-import           HotDrink
-import           MethodParser
+import           HotDrinkF
 
 -- check if constraint is part of another constraint (is subgraph)
 partOf :: Constraint -> Constraint -> Bool
@@ -44,3 +44,8 @@ getVariables _ = error "not a single constraint"
 
 concatExprsInMethodList :: [VertexType] -> [(String, Expr)]
 concatExprsInMethodList = concatMap (\case VertexMet (_, es) -> es; _ -> error "not a method")
+
+computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
+computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
+  where
+    order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay

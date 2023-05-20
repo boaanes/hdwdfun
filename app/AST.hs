@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
 
-module MethodParser
+module AST
     ( Expr (..)
     , Parser
     , Value (..)
@@ -21,7 +21,11 @@ type Parser = Parsec Void String
 data Value
   = DoubleVal Double
   | BoolVal Bool
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+instance Show Value where
+  show (DoubleVal d) = show d
+  show (BoolVal b)   = show b
 
 data Expr
   = BinOp String Expr Expr

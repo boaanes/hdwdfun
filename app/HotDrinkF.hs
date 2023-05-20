@@ -2,12 +2,10 @@
 {-# LANGUAGE LambdaCase    #-}
 {-# LANGUAGE TupleSections #-}
 
-module HotDrink
+module HotDrinkF
     ( Constraint (..)
     , Method
     , MethodGraph
-    , Variable
-    , VariableState
     , VertexType (..)
     , eval
     , getLabel
@@ -15,13 +13,15 @@ module HotDrink
     , methodUnion
     ) where
 
+import           AST
 import           Algebra.Graph.AdjacencyMap
 import           Algebra.Graph.AdjacencyMap.Algorithm
 import           Control.Monad                        (join)
 import qualified Data.Map                             (Map, lookup)
 import           Data.Maybe                           (catMaybes)
 import           GraphHelpers
-import           MethodParser
+
+--- Types and Data Structures ---
 
 type Method = (String, [(String, Expr)])
 
@@ -54,9 +54,8 @@ instance Monoid Constraint where
   mempty = Constraint [empty]
   mappend = (<>)
 
-getLabel :: VertexType -> String
-getLabel (VertexVar s)      = s
-getLabel (VertexMet (s, _)) = s
+
+--- AST Evaluation ---
 
 eval ::  Expr -> Data.Map.Map String (Maybe Value) -> Maybe Value
 eval (BinOp op e1 e2) env = do
@@ -96,8 +95,7 @@ liftDoubleUnOp :: (Double -> Double) -> Value -> Maybe Value
 liftDoubleUnOp f (DoubleVal a) = Just (DoubleVal (f a))
 liftDoubleUnOp _ _             = Nothing
 
-type Variable = (String, Maybe Double)
-type VariableState = [Variable]
+--- Helper Functions ---
 
 methodToGraph :: [String] -> Method -> MethodGraph
 methodToGraph inputs method =
@@ -106,3 +104,7 @@ methodToGraph inputs method =
         inputEdges = map (, methodVertex) inputVertices
         outputEdges = map ((methodVertex,) . VertexVar . fst) (snd method)
     in overlay (edges inputEdges) (edges outputEdges)
+
+getLabel :: VertexType -> String
+getLabel (VertexVar s)      = s
+getLabel (VertexMet (s, _)) = s

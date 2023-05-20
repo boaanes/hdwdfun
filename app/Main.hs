@@ -2,12 +2,11 @@
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE TypeApplications #-}
 module Main
-    ( Component (..)
-    , ConstraintSystem (..)
-    , main
+    ( main
     ) where
-import           Algs                  (concatExprsInMethodList, getLabels,
-                                        methodsToEnforce, plan)
+import           AST                   (Expr (..), Value (..), parseExpr)
+import           Algs                  (computePlan, concatExprsInMethodList,
+                                        getLabels, methodsToEnforce, plan)
 import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
@@ -16,33 +15,106 @@ import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
-import           HotDrink              (Constraint (..), MethodGraph,
-                                        VertexType, eval, methodToGraph)
-import           MethodParser          (Expr (..), Value (..), parseExpr)
-import           PrettyPrinter         (prettyPrintConstraint)
+import           HotDrinkF             (Constraint (..), MethodGraph, eval,
+                                        methodToGraph)
+import           PrettyPrinter
 import           System.IO
 import           Text.Megaparsec       (parse)
 import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
+import           WarmDrinkF            (Component (..), ConstraintSystem (..))
 
-data Component
-  = Component
-      { identifier  :: Int
-      , variables   :: Map String (Maybe Value)
-      , constraints :: [Constraint]
-      , strength    :: [String]
-      }
-  deriving (Eq, Show)
+--- Pure helpers ---
 
-data ConstraintSystem
-  = ConstraintSystem
-      { components               :: [Component]
-      , intercalatingConstraints :: [Constraint]
-      }
-  deriving (Show)
+addVariableToComponent :: String -> Maybe Value -> Component -> Component
+addVariableToComponent name val component =
+  component { variables = Map.insert name val (variables component)
+            , strength = name : filter (/= name) (strength component)
+            }
 
 readValue :: String -> Maybe Value
 readValue s = (DoubleVal <$> readMaybe s) <|> (BoolVal <$> readMaybe s)
+
+deleteVariableFromComponent :: String -> Component -> Component
+deleteVariableFromComponent name component =
+  component { variables = Map.delete name (variables component)
+            , strength = filter (/= name) (strength component)
+            }
+
+applyIntercalatingConstraint :: Constraint -> (Component, Component) -> Component
+applyIntercalatingConstraint cs (c1, c2) =
+    let vars1 = variables c1
+        mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] cs
+        newVals = map (\(name, e) -> (name, eval e vars1)) mte
+    in c2 { variables = Map.union (Map.fromList newVals) (variables c2) }
+
+applyAllInterclatingConstraints :: [Constraint] -> (Component, Component) -> Component
+applyAllInterclatingConstraints inters comps =
+    foldl' (\c cs -> applyIntercalatingConstraint cs (c, snd comps)) (fst comps) inters
+
+--- IO helpers ---
+
+satisfy :: Component -> StateT ConstraintSystem IO ()
+satisfy c = do
+    let st = strength c
+    let cs = constraints c
+    maybe
+        (liftIO $ putStrLn "No plan found")
+        (\m -> do
+            enforceMethods c (concatExprsInMethodList m)
+            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
+        ) (computePlan st cs)
+
+enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforceMethods c = traverse_ (\(name, e) -> do
+    let vars = variables c
+        newVal = eval e vars
+    modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
+    )
+
+enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
+enforceIntercalatingConstraint i = do
+    comps <- gets components
+    inter <- gets intercalatingConstraints
+    let comp = find (\c -> identifier c == i) comps
+    case comp of
+        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Just c -> do
+            let fromVars = variables c
+                mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] $ mconcat inter
+                newVals = map (\(name, e) -> (name, eval e fromVars)) mte
+            modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
+            liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
+
+inputExpr :: String -> IO (String, Expr)
+inputExpr name = do
+    putStrLn $ "Enter expression for " ++ name ++ ":"
+    input <- prompt
+    case parse parseExpr "" input of
+        Right e -> do
+            liftIO $ putStrLn "Parse success"
+            return (name, e)
+        Left bundle -> do
+            putStr (errorBundlePretty bundle)
+            inputExpr name
+
+inputMethod :: IO MethodGraph
+inputMethod = do
+    liftIO $ putStrLn "Enter name of method:"
+    name <- liftIO prompt
+    liftIO $ putStrLn "Enter space separated input names to method:"
+    inputsStr <- liftIO prompt
+    liftIO $ putStrLn "Enter output variables to method:"
+    outputsStr <- liftIO prompt
+    let inputs = words inputsStr
+        outputs = words outputsStr
+    exprs <- liftIO $ traverse inputExpr outputs
+    let method = (name, exprs)
+        methodGraph = methodToGraph inputs method
+    return methodGraph
+
+
+--- Process input from user ---
 
 processInput :: String -> StateT ConstraintSystem IO ()
 processInput input = do
@@ -50,7 +122,7 @@ processInput input = do
         ["comp"] -> do
             comps <- gets components
             if null comps
-               then addEmptyComponent
+               then modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
                else do
                    let lastComp = last comps
                    modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
@@ -70,7 +142,8 @@ processInput input = do
                 Nothing -> liftIO $ putStrLn "Couldnt parse the value"
                 Just v -> do
                     comps <- gets components
-                    traverse_ (\c -> addVariableToComponent c var (Just v)) comps
+                    let newComps = addVariableToComponent var (Just v) <$> comps
+                    modify $ \cs -> cs { components = newComps }
                     liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
         ["constr", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
@@ -94,32 +167,41 @@ processInput input = do
                     case comp of
                         Nothing -> liftIO $ putStrLn "Couldnt find component"
                         Just c -> do
-                            addVariableToComponent c var (Just v)
-                            modifyStrengthOfComponent c var
+                            let newComp = addVariableToComponent var (Just v) c
+                            modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == n then newComp else c') (components cs) }
                             liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> liftIO $ putStrLn "Couldnt parse id or the value"
-        ["delete", ident, var] -> do
-            case readMaybe ident of
-                (Just n) -> do
-                    deleteVariableFromComponent n var
-                    liftIO $ putStrLn $ "Deleted variable: " ++ var
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["delete", var] -> do
+            comps <- gets components
+            let newComps = deleteVariableFromComponent var <$> comps
+            modify $ \cs -> cs { components = newComps }
+            liftIO $ putStrLn $ "Deleted variable: '" ++ var ++ "' from all components"
         ["delete", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
-                    deleteComponent n
-                    liftIO $ putStrLn "Deleted component"
+                    modify $ \s -> s { components = filter (\c -> identifier c /= n) (components s) }
+                    liftIO $ putStrLn $ "Deleted component with id: " ++ ident
                 _ -> liftIO $ putStrLn "Couldnt parse id"
-        ["show", "comp"] -> showComponents
+        ["show", "comp"] -> do
+            comps <- gets components
+            liftIO $ putStrLn $ intercalate "\n\n" $ fmap showComponent comps
         ["show", "var", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
-                    showVariablesOfComponent n
+                    comps <- gets components
+                    let comp = find (\c -> identifier c == n) comps
+                    case comp of
+                        Nothing -> liftIO $ putStrLn "Couldnt find component"
+                        Just c -> liftIO $ putStrLn $ showVariablesOfComponent c
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["show", "constr", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
-                    showConstraintsOfComponent n
+                    comps <- gets components
+                    let comp = find (\c -> identifier c == n) comps
+                    case comp of
+                        Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
+                        _      -> liftIO $ putStrLn "Couldnt find component"
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["show", "inter"] -> do
             cs <- gets intercalatingConstraints
@@ -128,24 +210,25 @@ processInput input = do
             comps <- gets components
             let comp = find (\c -> identifier c == read ident) comps
             case comp of
-                (Just c) -> do
-                    showStrengthOfComponent c
-                _ -> liftIO $ putStrLn "Couldnt find component"
+                (Just c) -> liftIO $ putStrLn $ showStrengthOfComponent c
+                _        -> liftIO $ putStrLn "Couldnt find component"
         ["show", "plan", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
-                    showPlanOfComponent n
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+                    comps <- gets components
+                    let comp = find (\c -> identifier c == n) comps
+                    case comp of
+                        (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
+                        _        -> liftIO $ putStrLn "Couldnt find component"
+                _        -> liftIO $ putStrLn "Couldnt parse id"
         ["run", ident] ->
             case readMaybe ident of
                 (Just n) -> do
                     comps <- gets components
                     let comp = find (\c -> identifier c == n) comps
                     case comp of
-                        (Just c) -> do
-                            satisfy c
-                            liftIO $ putStrLn "Satisfied"
-                        _ -> liftIO $ putStrLn "Couldnt find component"
+                        (Just c) -> satisfy c
+                        _        -> liftIO $ putStrLn "Couldnt find component"
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["run", "inter", ident] -> do
             case readMaybe ident of
@@ -176,136 +259,7 @@ processInput input = do
         ["exit"] -> return ()
         _ -> liftIO $ putStrLn "Unknown command"
 
-addEmptyComponent :: StateT ConstraintSystem IO ()
-addEmptyComponent = do
-    modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
-
-deleteComponent :: Int -> StateT ConstraintSystem IO ()
-deleteComponent i = do
-    modify $ \s -> s { components = filter (\c -> identifier c /= i) (components s) }
-
-showComponent :: Component -> String
-showComponent c = "Component " ++ show (identifier c) ++ ": " ++ "\n" ++ intercalate "\n" (map (\(k, v) -> k ++ " = " ++ show v) (Map.toList (variables c)))
-
-showComponents :: StateT ConstraintSystem IO ()
-showComponents = do
-    comps <- gets components
-    liftIO $ putStrLn $ intercalate "\n\n" $ fmap showComponent comps
-
-addVariableToComponent :: Component -> String -> Maybe Value -> StateT ConstraintSystem IO ()
-addVariableToComponent component name val = do
-    modify $ \s -> s { components = map (\c -> if c == component then c { variables = Map.insert name val (variables c), strength = name : filter (/= name) (strength c) } else c) (components s) }
-
-deleteVariableFromComponent :: Int -> String -> StateT ConstraintSystem IO ()
-deleteVariableFromComponent i name = do
-    modify $ \s -> s { components = map (\c -> if identifier c == i then c { variables = Map.delete name (variables c) } else c) (components s) }
-
-modifyStrengthOfComponent :: Component -> String -> StateT ConstraintSystem IO ()
-modifyStrengthOfComponent component name = do
-    modify $ \s -> s { components = map (\c -> if c == component then c { strength = name : filter (/= name) (strength c) } else c) (components s) }
-
-showVariablesOfComponent :: Int -> StateT ConstraintSystem IO ()
-showVariablesOfComponent i = do
-    cs <- gets components
-    let comp = find (\c -> identifier c == i) cs
-    maybe (liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found") (liftIO . mapM_ (\(name, val) -> putStrLn $ name ++ " = " ++ show val) . Map.toList . variables) comp
-
-showConstraintsOfComponent :: Int -> StateT ConstraintSystem IO ()
-showConstraintsOfComponent i = do
-    cs <- gets components
-    let comp = find (\c -> identifier c == i) cs
-    maybe (liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found") (liftIO . mapM_ (\c -> putStrLn $ prettyPrintConstraint c ++ "\n" ++ replicate 80 '-') . constraints) comp
-
-showStrengthOfComponent :: Component -> StateT ConstraintSystem IO ()
-showStrengthOfComponent comp = do
-    liftIO $ putStrLn $ "Strength: " ++ show (strength comp)
-
-showPlanOfComponent :: Int -> StateT ConstraintSystem IO ()
-showPlanOfComponent i = do
-    cs <- gets components
-    let comp = find (\c -> identifier c == i) cs
-    case comp of
-        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
-        Just c -> do
-            liftIO $ putStrLn $ "Strength: " ++ show (strength c)
-            liftIO $ putStrLn $ "Constraints: " ++ show (constraints c)
-            maybe (liftIO $ putStrLn $ "No plan found for component '" ++ show i ++ "'") (liftIO . putStrLn . ("Plan: " ++) . intercalate " -> " . getLabels . Just) (computePlan (strength c) (constraints c))
-
-satisfy :: Component -> StateT ConstraintSystem IO ()
-satisfy c = do
-    let st = strength c
-    let cs = constraints c
-    maybe
-        (liftIO $ putStrLn "No plan found")
-        (\m -> do
-            enforceMethods c (concatExprsInMethodList m)
-            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
-        ) (computePlan st cs)
-
-computePlan :: [String] -> [Constraint] -> Maybe [VertexType]
-computePlan stay cs = methodsToEnforce $ plan order $ mconcat cs
-  where
-    order = map (\s -> Constraint [methodToGraph [] ("m" ++ s, [(s, Var s)])]) stay
-
-enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforceMethods c = traverse_ (\(name, e) -> do
-    let vars = variables c
-        newVal = eval e vars
-    modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
-    )
-
-enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
-enforceIntercalatingConstraint i = do
-    comps <- gets components
-    inter <- gets intercalatingConstraints
-    let comp = find (\c -> identifier c == i) comps
-    case comp of
-        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
-        Just c -> do
-            let fromVars = variables c
-                mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] $ mconcat inter
-                newVals = map (\(name, e) -> (name, eval e fromVars)) mte
-            modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
-            liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
-
-applyIntercalatingConstraint :: Constraint -> (Component, Component) -> Component
-applyIntercalatingConstraint cs (c1, c2) =
-    let vars1 = variables c1
-        mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] cs
-        newVals = map (\(name, e) -> (name, eval e vars1)) mte
-    in c2 { variables = Map.union (Map.fromList newVals) (variables c2) }
-
-applyAllInterclatingConstraints :: [Constraint] -> (Component, Component) -> Component
-applyAllInterclatingConstraints inters comps =
-    foldl' (\c cs -> applyIntercalatingConstraint cs (c, snd comps)) (fst comps) inters
-
-inputExpr :: String -> IO (String, Expr)
-inputExpr name = do
-    putStrLn $ "Enter expression for " ++ name ++ ":"
-    input <- prompt
-    case parse parseExpr "" input of
-        Right e -> do
-            liftIO $ putStrLn "Parse success"
-            return (name, e)
-        Left bundle -> do
-            putStr (errorBundlePretty bundle)
-            inputExpr name
-
-inputMethod :: IO MethodGraph
-inputMethod = do
-    liftIO $ putStrLn "Enter name of method:"
-    name <- liftIO prompt
-    liftIO $ putStrLn "Enter space separated input names to method:"
-    inputsStr <- liftIO prompt
-    liftIO $ putStrLn "Enter output variables to method:"
-    outputsStr <- liftIO prompt
-    let inputs = words inputsStr
-        outputs = words outputsStr
-    exprs <- liftIO $ traverse inputExpr outputs
-    let method = (name, exprs)
-        methodGraph = methodToGraph inputs method
-    return methodGraph
-
+-- Prompt function
 prompt :: IO String
 prompt = do
     putStr "\ESC[32m$ "
@@ -314,12 +268,15 @@ prompt = do
     putStr "\ESC[0m"
     return input
 
+
+-- Main CLI loop
 userInputLoop :: StateT ConstraintSystem IO ()
 userInputLoop = do
     input <- liftIO prompt
     processInput input
     unless (input == "exit") userInputLoop
 
+--- Test data ---
 
 testVars :: Map String (Maybe Value)
 testVars = Map.fromList [("w", Just (DoubleVal 10)), ("h", Just (DoubleVal 10)), ("a", Just (DoubleVal 100)), ("p", Just (DoubleVal 40))]
@@ -340,9 +297,11 @@ testCons =
 testOrder :: [String]
 testOrder = ["a", "p", "w", "h"]
 
+--- Main function (entry point) ---
+
 main :: IO ()
 main = do
     putStrLn "Welcome to HotDrink"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem [] [])
+    evalStateT userInputLoop (ConstraintSystem [Component 0 testVars testCons testOrder] [])
     putStrLn "Goodbye"

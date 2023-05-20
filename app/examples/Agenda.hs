@@ -9,11 +9,11 @@ module Agenda
     , m1Graph
     ) where
 
+import           AST
 import           Algebra.Graph.AdjacencyMap
 import qualified Data.Map                   as Map
-import           HotDrink
-import           Main
-import           MethodParser
+import           HotDrinkF
+import           WarmDrinkF
 
 m1 :: Method
 m1 = ("m1", [("end", BinOp "+" (Var "start") (Var "duration"))])
