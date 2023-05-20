@@ -57,6 +57,13 @@ applyAllInterclatingConstraints inters comps =
 
 --- IO helpers ---
 
+findComponent :: String -> StateT ConstraintSystem IO (Maybe Component)
+findComponent ident = do
+    comps <- gets components
+    return $ case readMaybe ident of
+        Just identInt -> find (\c -> identifier c == identInt) comps
+        Nothing       -> Nothing
+
 satisfy :: Component -> StateT ConstraintSystem IO ()
 satisfy c = do
     let st = strength c
@@ -164,15 +171,14 @@ processInput input = do
                     liftIO $ putStrLn $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
         ["update", ident, var, val] -> do
-            case (readMaybe ident, readValue val) of
-                (Just n, Just v) -> do
-                    comps <- gets components
-                    let comp = find (\c -> identifier c == n) comps
-                    case comp of
+            case readValue val of
+                Just v -> do
+                    maybeComp <- findComponent ident
+                    case maybeComp of
                         Nothing -> liftIO $ putStrLn "Couldnt find component"
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
-                            modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == n then newComp else c') (components cs) }
+                            modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
                             liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> liftIO $ putStrLn "Couldnt parse id or the value"
         ["delete", "var", var] -> do
@@ -190,14 +196,10 @@ processInput input = do
             comps <- gets components
             liftIO $ putStrLn $ intercalate "\n\n" $ fmap showComponent comps
         ["show", "var", ident] -> do
-            case readMaybe ident of
-                (Just n) -> do
-                    comps <- gets components
-                    let comp = find (\c -> identifier c == n) comps
-                    case comp of
-                        Nothing -> liftIO $ putStrLn "Couldnt find component"
-                        Just c -> liftIO $ putStrLn $ showVariablesOfComponent c
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+            maybeComp <- findComponent ident
+            case maybeComp of
+                Nothing -> liftIO $ putStrLn "Couldnt find component"
+                Just c  -> liftIO $ putStrLn $ showVariablesOfComponent c
         ["show", "constr"] -> do
             comps <- gets components
             let comp = safeHead comps
@@ -208,29 +210,20 @@ processInput input = do
             cs <- gets intercalatingConstraints
             liftIO $ putStrLn $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
         ["show", "strength", ident] -> do
-            comps <- gets components
-            let comp = find (\c -> identifier c == read ident) comps
-            case comp of
+            maybeComp <- findComponent ident
+            case maybeComp of
                 (Just c) -> liftIO $ putStrLn $ showStrengthOfComponent c
                 _        -> liftIO $ putStrLn "Couldnt find component"
         ["show", "plan", ident] -> do
-            case readMaybe ident of
-                (Just n) -> do
-                    comps <- gets components
-                    let comp = find (\c -> identifier c == n) comps
-                    case comp of
-                        (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
-                        _        -> liftIO $ putStrLn "Couldnt find component"
-                _        -> liftIO $ putStrLn "Couldnt parse id"
-        ["run", ident] ->
-            case readMaybe ident of
-                (Just n) -> do
-                    comps <- gets components
-                    let comp = find (\c -> identifier c == n) comps
-                    case comp of
-                        (Just c) -> satisfy c
-                        _        -> liftIO $ putStrLn "Couldnt find component"
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+            maybeComp <- findComponent ident
+            case maybeComp of
+                (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
+                _        -> liftIO $ putStrLn "Couldnt find component"
+        ["run", ident] -> do
+            maybeComp <- findComponent ident
+            case maybeComp of
+                (Just c) -> satisfy c
+                _        -> liftIO $ putStrLn "Couldnt find component"
         ["run", "inter", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
