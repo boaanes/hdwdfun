@@ -25,6 +25,10 @@ import           WarmDrinkF            (Component (..), ConstraintSystem (..))
 
 --- Pure helpers ---
 
+safeHead :: [a] -> Maybe a
+safeHead []    = Nothing
+safeHead (x:_) = Just x
+
 addVariableToComponent :: String -> Maybe Value -> Component -> Component
 addVariableToComponent name val component =
   component { variables = Map.insert name val (variables component)
@@ -170,12 +174,12 @@ processInput input = do
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == n then newComp else c') (components cs) }
                             liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> liftIO $ putStrLn "Couldnt parse id or the value"
-        ["delete", var] -> do
+        ["delete", "var", var] -> do
             comps <- gets components
             let newComps = deleteVariableFromComponent var <$> comps
             modify $ \cs -> cs { components = newComps }
             liftIO $ putStrLn $ "Deleted variable: '" ++ var ++ "' from all components"
-        ["delete", ident] -> do
+        ["delete", "comp", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
                     modify $ \s -> s { components = filter (\c -> identifier c /= n) (components s) }
@@ -193,15 +197,12 @@ processInput input = do
                         Nothing -> liftIO $ putStrLn "Couldnt find component"
                         Just c -> liftIO $ putStrLn $ showVariablesOfComponent c
                 _ -> liftIO $ putStrLn "Couldnt parse id"
-        ["show", "constr", ident] -> do
-            case readMaybe ident of
-                (Just n) -> do
-                    comps <- gets components
-                    let comp = find (\c -> identifier c == n) comps
-                    case comp of
-                        Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
-                        _      -> liftIO $ putStrLn "Couldnt find component"
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+        ["show", "constr"] -> do
+            comps <- gets components
+            let comp = safeHead comps
+            case comp of
+                Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
+                _      -> liftIO $ putStrLn "No components defined"
         ["show", "inter"] -> do
             cs <- gets intercalatingConstraints
             liftIO $ putStrLn $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
@@ -243,11 +244,11 @@ processInput input = do
             liftIO $ putStrLn "constr <n> - add a constraint with n methods to all components"
             liftIO $ putStrLn "inter <n> - add an intercalating constraint with n methods"
             liftIO $ putStrLn "update <id> <var> <val> - update a variable of a component"
-            liftIO $ putStrLn "delete <id> <var> - delete a variable from a component"
-            liftIO $ putStrLn "delete <id> - delete a component"
+            liftIO $ putStrLn "delete var <var> - delete a variable from a component"
+            liftIO $ putStrLn "delete comp <id> - delete a component"
             liftIO $ putStrLn "show comp - show all components"
             liftIO $ putStrLn "show var <id> - show all variables of a component (all components have the same set of variables)"
-            liftIO $ putStrLn "show constr <id> - show all constraints of a component (all components have the same set of constraints)"
+            liftIO $ putStrLn "show constr - show the constraints of each component"
             liftIO $ putStrLn "show inter - show all intercalating constraints"
             liftIO $ putStrLn "show strength <id> - show the strength of the variables of a component"
             liftIO $ putStrLn "show plan <id> - show the current plan of a component"
