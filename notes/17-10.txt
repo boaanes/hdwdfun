@@ -1,2 +1,0 @@
-- Hierarcical planner/solver
-- Vertices representing variables (later)

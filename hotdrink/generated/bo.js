@@ -1,1 +1,0 @@
-export const sqrt = (x) => Math.sqrt(x);
