@@ -12,6 +12,7 @@ import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
 import           Data.Foldable         (find, foldl', traverse_)
+import           Data.Functor          ((<&>))
 import           Data.List             (intercalate)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
@@ -42,6 +43,13 @@ getNext _ [_] = Nothing
 getNext e (x:y:xs)
   | e == x = Just y
   | otherwise = getNext e (y:xs)
+
+getPrev :: Eq a => a -> [a] -> Maybe a
+getPrev _ [] = Nothing
+getPrev _ [_] = Nothing
+getPrev e (x:y:xs)
+  | e == y = Just x
+  | otherwise = getPrev e (y:xs)
 
 swapComponents :: Component -> Component -> [Component] -> [Component]
 swapComponents _ _ [] = []
@@ -120,6 +128,14 @@ enforceIntercalatingConstraint i = do
                     modify $ \s -> s { components = map (\c' -> if identifier c' == identifier ne then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
                     putLnIO $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
+satisfyInter :: String -> StateT ConstraintSystem IO ()
+satisfyInter ident = do
+    case readMaybe @Int ident of
+        (Just n) -> do
+            comps <- gets components
+            traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ dropWhile (\c -> identifier c /= n) comps
+        _        -> putLnIO "Couldnt parse id"
+
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
     putStrLn $ "Enter expression for " ++ name ++ ":"
@@ -156,10 +172,11 @@ processInput input = do
         ["comp"] -> do
             comps <- gets components
             if null comps
-               then modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
-               else do
-                   let lastComp = last comps
-                   modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
+                then modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
+                else do
+                    let lastComp = last comps
+                    modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
+                    satisfyInter $ show $ identifier lastComp
             putLnIO "Added component"
         ["list", nCompsStr] -> do
             comps <- gets components
@@ -202,6 +219,7 @@ processInput input = do
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
+                            satisfyInter ident
                             putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> putLnIO "Couldnt parse id or the value"
         ["insert", ident] -> do
@@ -213,6 +231,7 @@ processInput input = do
                     let newComp = preceedingComp { identifier = (identifier . getComponentWithBiggestId) comps + 1 }
                         newComps = insertAfter preceedingComp newComp comps
                     modify $ \cs -> cs { components = newComps }
+                    satisfyInter ident
                     putLnIO $ "Inserted component after component with id " ++ show (identifier preceedingComp)
         ["swap", identA, identB] -> do
             maybeCompA <- findComponent identA
@@ -223,6 +242,7 @@ processInput input = do
                     let newComps = swapComponents compA compB comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
+                    maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
                 _ -> putLnIO "Couldnt find one or both components"
         ["delete", "var", var] -> do
             comps <- gets components
@@ -230,11 +250,15 @@ processInput input = do
             modify $ \cs -> cs { components = newComps }
             putLnIO $ "Deleted variable: '" ++ var ++ "' from all components"
         ["delete", "comp", ident] -> do
-            case readMaybe ident of
-                (Just n) -> do
-                    modify $ \s -> s { components = filter (\c -> identifier c /= n) (components s) }
-                    putLnIO $ "Deleted component with id: " ++ ident
-                _ -> putLnIO "Couldnt parse id"
+            maybeComp <- findComponent ident
+            case maybeComp of
+                Nothing -> putLnIO "Couldnt find component"
+                Just c -> do
+                    comps <- gets components
+                    let newComps = filter ((/= identifier c) . identifier) comps
+                    modify $ \cs -> cs { components = newComps }
+                    putLnIO $ "Deleted component with id " ++ show (identifier c)
+                    maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
         ["show", "comp"] -> do
             comps <- gets components
             putLnIO $ intercalate "\n\n" $ fmap showComponent comps
@@ -267,12 +291,7 @@ processInput input = do
             case maybeComp of
                 (Just c) -> satisfy c
                 _        -> putLnIO "Couldnt find component"
-        ["run", "inter", ident] -> do
-            case readMaybe @Int ident of
-                (Just n) -> do
-                    comps <- gets components
-                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ dropWhile (\c -> identifier c /= n) comps
-                _ -> putLnIO "Couldnt parse id"
+        ["run", "inter", ident] -> satisfyInter ident
         ["help"] -> do
             putLnIO "Commands:"
             putLnIO "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
