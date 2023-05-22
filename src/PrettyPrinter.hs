@@ -14,7 +14,7 @@ module PrettyPrinter
 import qualified Algebra.Graph.AdjacencyMap as Adj
 import           Data.List                  (intercalate)
 import qualified Data.Set                   as Set
-import           HotDrinkF                   
+import           HotDrinkF
 import           WarmDrinkF
 import qualified Data.Map                   as Map
 import           Algs                       (getLabels, computePlan)
@@ -42,7 +42,7 @@ showEdge :: [String] -> String -> [String] -> String
 showEdge ins m outs = "[" <> intercalate "," ins <> "] -> " <> m <> " -> [" <> intercalate "," outs <> "]"
 
 showComponent :: Component -> String
-showComponent c = "Component " ++ show (identifier c) ++ ": " ++ "\n" ++ intercalate "\n" (map (\(k, v) -> k ++ " = " ++ show v) (Map.toList (variables c)))
+showComponent c = "Component " ++ show (identifier c) ++ ": " ++ "\n" ++ showVariablesOfComponent c
 
 showVariablesOfComponent :: Component -> String
 showVariablesOfComponent c = intercalate "\n" (map (\case (k, Nothing) -> k ++ " = Nothing"; (k, Just v) -> k ++ " = " ++ show v) (Map.toList (variables c)))
