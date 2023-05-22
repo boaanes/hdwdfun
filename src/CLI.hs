@@ -271,7 +271,7 @@ processInput input = do
             case readMaybe @Int ident of
                 (Just n) -> do
                     comps <- gets components
-                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ drop n comps
+                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ dropWhile (\c -> identifier c /= n) comps
                 _ -> putLnIO "Couldnt parse id"
         ["help"] -> do
             putLnIO "Commands:"
