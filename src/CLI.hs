@@ -93,10 +93,10 @@ satisfy c = do
     let st = strength c
     let cs = constraints c
     maybe
-        (liftIO $ putStrLn "No plan found")
+        (putLnIO "No plan found")
         (\m -> do
             enforceMethods c (concatExprsInMethodList m)
-            liftIO $ putStrLn $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
+            putLnIO $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
         ) (computePlan st cs)
 
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
@@ -108,7 +108,7 @@ enforceIntercalatingConstraint i = do
     inter <- gets intercalatingConstraints
     let comp = find (\c -> identifier c == i) comps
     case comp of
-        Nothing -> liftIO $ putStrLn $ "Component with id " ++ show i ++ " not found"
+        Nothing -> putLnIO $ "Component with id " ++ show i ++ " not found"
         Just c -> do
             let fromVars = variables c
                 mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] $ mconcat inter
@@ -118,7 +118,7 @@ enforceIntercalatingConstraint i = do
                 Nothing -> return () -- last element
                 Just ne -> do
                     modify $ \s -> s { components = map (\c' -> if identifier c' == identifier ne then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
-                    liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
+                    putLnIO $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
@@ -126,7 +126,7 @@ inputExpr name = do
     input <- prompt
     case parse parseExpr "" input of
         Right e -> do
-            liftIO $ putStrLn "Parse success"
+            putLnIO "Parse success"
             return (name, e)
         Left bundle -> do
             putStr (errorBundlePretty bundle)
@@ -134,11 +134,11 @@ inputExpr name = do
 
 inputMethod :: IO MethodGraph
 inputMethod = do
-    liftIO $ putStrLn "Enter name of method:"
+    putLnIO "Enter name of method:"
     name <- liftIO prompt
-    liftIO $ putStrLn "Enter space separated input names to method:"
+    putLnIO "Enter space separated input names to method:"
     inputsStr <- liftIO prompt
-    liftIO $ putStrLn "Enter output variables to method:"
+    putLnIO "Enter output variables to method:"
     outputsStr <- liftIO prompt
     let inputs = words inputsStr
         outputs = words outputsStr
@@ -160,7 +160,7 @@ processInput input = do
                else do
                    let lastComp = last comps
                    modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
-            liftIO $ putStrLn "Added component"
+            putLnIO "Added component"
         ["list", nCompsStr] -> do
             comps <- gets components
             if null comps
@@ -168,52 +168,52 @@ processInput input = do
                     Just n -> do
                         let newComps = fmap (\i -> Component i Map.empty [] []) [0..n-1]
                         modify $ \cs -> cs { components = newComps }
-                        liftIO $ putStrLn $ "Added " ++ nCompsStr ++ " components"
-                    _ -> liftIO $ putStrLn "Couldnt parse the number of components"
-                else liftIO $ putStrLn "There are already components defined"
+                        putLnIO $ "Added " ++ nCompsStr ++ " components"
+                    _ -> putLnIO "Couldnt parse the number of components"
+                else putLnIO "There are already components defined"
         ["var", var, val] -> do
             case readValue val of
-                Nothing -> liftIO $ putStrLn "Couldnt parse the value"
+                Nothing -> putLnIO "Couldnt parse the value"
                 Just v -> do
                     comps <- gets components
                     let newComps = addVariableToComponent var (Just v) <$> comps
                     modify $ \cs -> cs { components = newComps }
-                    liftIO $ putStrLn $ "Added variable: " ++ var ++ " = " ++ val
+                    putLnIO $ "Added variable: " ++ var ++ " = " ++ val
         ["constr", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { components = fmap (\c -> c { constraints = Constraint methodGraphs : constraints c }) (components cs) }
-                    liftIO $ putStrLn $ "Added constraint with " ++ nMethodsStr ++ " methods"
-                _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
+                    putLnIO $ "Added constraint with " ++ nMethodsStr ++ " methods"
+                _ -> putLnIO "Couldnt parse the id or the number of methods"
         ["inter", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { intercalatingConstraints = Constraint methodGraphs : intercalatingConstraints cs }
-                    liftIO $ putStrLn $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
-                _ -> liftIO $ putStrLn "Couldnt parse the id or the number of methods"
+                    putLnIO $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
+                _ -> putLnIO "Couldnt parse the id or the number of methods"
         ["update", ident, var, val] -> do
             case readValue val of
                 Just v -> do
                     maybeComp <- findComponent ident
                     case maybeComp of
-                        Nothing -> liftIO $ putStrLn "Couldnt find component"
+                        Nothing -> putLnIO "Couldnt find component"
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
-                            liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
-                _ -> liftIO $ putStrLn "Couldnt parse id or the value"
+                            putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
+                _ -> putLnIO "Couldnt parse id or the value"
         ["insert", ident] -> do
             maybePrecedingComp <- findComponent ident
             case maybePrecedingComp of
-                Nothing -> liftIO $ putStrLn "Couldnt find component"
+                Nothing -> putLnIO "Couldnt find component"
                 Just preceedingComp -> do
                     comps <- gets components
                     let newComp = preceedingComp { identifier = (identifier . getComponentWithBiggestId) comps + 1 }
                         newComps = insertAfter preceedingComp newComp comps
                     modify $ \cs -> cs { components = newComps }
-                    liftIO $ putStrLn $ "Inserted component after component with id " ++ show (identifier preceedingComp)
+                    putLnIO $ "Inserted component after component with id " ++ show (identifier preceedingComp)
         ["swap", identA, identB] -> do
             maybeCompA <- findComponent identA
             maybeCompB <- findComponent identB
@@ -222,82 +222,85 @@ processInput input = do
                     comps <- gets components
                     let newComps = swapComponents compA compB comps
                     modify $ \cs -> cs { components = newComps }
-                    liftIO $ putStrLn $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
-                _ -> liftIO $ putStrLn "Couldnt find one or both components"
+                    putLnIO $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
+                _ -> putLnIO "Couldnt find one or both components"
         ["delete", "var", var] -> do
             comps <- gets components
             let newComps = deleteVariableFromComponent var <$> comps
             modify $ \cs -> cs { components = newComps }
-            liftIO $ putStrLn $ "Deleted variable: '" ++ var ++ "' from all components"
+            putLnIO $ "Deleted variable: '" ++ var ++ "' from all components"
         ["delete", "comp", ident] -> do
             case readMaybe ident of
                 (Just n) -> do
                     modify $ \s -> s { components = filter (\c -> identifier c /= n) (components s) }
-                    liftIO $ putStrLn $ "Deleted component with id: " ++ ident
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+                    putLnIO $ "Deleted component with id: " ++ ident
+                _ -> putLnIO "Couldnt parse id"
         ["show", "comp"] -> do
             comps <- gets components
-            liftIO $ putStrLn $ intercalate "\n\n" $ fmap showComponent comps
+            putLnIO $ intercalate "\n\n" $ fmap showComponent comps
         ["show", "var", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
-                Nothing -> liftIO $ putStrLn "Couldnt find component"
-                Just c  -> liftIO $ putStrLn $ showVariablesOfComponent c
+                Nothing -> putLnIO "Couldnt find component"
+                Just c  -> putLnIO $ showVariablesOfComponent c
         ["show", "constr"] -> do
             comps <- gets components
             let comp = safeHead comps
             case comp of
-                Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
-                _      -> liftIO $ putStrLn "No components defined"
+                Just c -> putLnIO $ showConstraintsOfComponent c
+                _      -> putLnIO "No components defined"
         ["show", "inter"] -> do
             cs <- gets intercalatingConstraints
-            liftIO $ putStrLn $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
+            putLnIO $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
         ["show", "strength", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
-                (Just c) -> liftIO $ putStrLn $ showStrengthOfComponent c
-                _        -> liftIO $ putStrLn "Couldnt find component"
+                (Just c) -> putLnIO $ showStrengthOfComponent c
+                _        -> putLnIO "Couldnt find component"
         ["show", "plan", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
-                (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
-                _        -> liftIO $ putStrLn "Couldnt find component"
+                (Just c) -> putLnIO $ showPlanOfComponent c
+                _        -> putLnIO "Couldnt find component"
         ["run", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 (Just c) -> satisfy c
-                _        -> liftIO $ putStrLn "Couldnt find component"
+                _        -> putLnIO "Couldnt find component"
         ["run", "inter", ident] -> do
             case readMaybe @Int ident of
                 (Just n) -> do
                     comps <- gets components
                     traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ drop n comps
-                _ -> liftIO $ putStrLn "Couldnt parse id"
+                _ -> putLnIO "Couldnt parse id"
         ["help"] -> do
-            liftIO $ putStrLn "Commands:"
-            liftIO $ putStrLn "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
-            liftIO $ putStrLn "comp - add a component"
-            liftIO $ putStrLn "list <n> - add n components"
-            liftIO $ putStrLn "var <var> <val> - add a variable to all components"
-            liftIO $ putStrLn "constr <n> - add a constraint with n methods to all components"
-            liftIO $ putStrLn "inter <n> - add an intercalating constraint with n methods"
-            liftIO $ putStrLn "update <id> <var> <val> - update a variable of a component"
-            liftIO $ putStrLn "insert <id> - insert a component after the component with the given id"
-            liftIO $ putStrLn "swap <id> <id> - swap the positions two components"
-            liftIO $ putStrLn "delete var <var> - delete a variable from a component"
-            liftIO $ putStrLn "delete comp <id> - delete a component"
-            liftIO $ putStrLn "show comp - show all components"
-            liftIO $ putStrLn "show var <id> - show all variables of a component (all components have the same set of variables)"
-            liftIO $ putStrLn "show constr - show the constraints of each component"
-            liftIO $ putStrLn "show inter - show all intercalating constraints"
-            liftIO $ putStrLn "show strength <id> - show the strength of the variables of a component"
-            liftIO $ putStrLn "show plan <id> - show the current plan of a component"
-            liftIO $ putStrLn "run <id> - enforce the plan of a component"
-            liftIO $ putStrLn "run inter <id> - satisfy the whole constraint system from the given component to the end"
-            liftIO $ putStrLn "help - show this message"
-            liftIO $ putStrLn "exit - exit the program"
+            putLnIO "Commands:"
+            putLnIO "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
+            putLnIO "comp - add a component"
+            putLnIO "list <n> - add n components"
+            putLnIO "var <var> <val> - add a variable to all components"
+            putLnIO "constr <n> - add a constraint with n methods to all components"
+            putLnIO "inter <n> - add an intercalating constraint with n methods"
+            putLnIO "update <id> <var> <val> - update a variable of a component"
+            putLnIO "insert <id> - insert a component after the component with the given id"
+            putLnIO "swap <id> <id> - swap the positions two components"
+            putLnIO "delete var <var> - delete a variable from a component"
+            putLnIO "delete comp <id> - delete a component"
+            putLnIO "show comp - show all components"
+            putLnIO "show var <id> - show all variables of a component (all components have the same set of variables)"
+            putLnIO "show constr - show the constraints of each component"
+            putLnIO "show inter - show all intercalating constraints"
+            putLnIO "show strength <id> - show the strength of the variables of a component"
+            putLnIO "show plan <id> - show the current plan of a component"
+            putLnIO "run <id> - enforce the plan of a component"
+            putLnIO "run inter <id> - satisfy the whole constraint system from the given component to the end"
+            putLnIO "help - show this message"
+            putLnIO "exit - exit the program"
         ["exit"] -> return ()
-        _ -> liftIO $ putStrLn "Unknown command"
+        _ -> putLnIO "Unknown command"
+
+putLnIO :: MonadIO m => String -> m ()
+putLnIO = liftIO . putStrLn
 
 -- Prompt function
 prompt :: IO String
