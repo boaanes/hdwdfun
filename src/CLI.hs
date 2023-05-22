@@ -40,6 +40,13 @@ swapAt i j xs = [get' k x | (k, x) <- zip [0..] xs]
                   | k == j = xs !! i
                   | otherwise = x
 
+getNext :: Eq a => a -> [a] -> Maybe a
+getNext _ [] = Nothing
+getNext _ [_] = Nothing
+getNext e (x:y:xs)
+  | e == x = Just y
+  | otherwise = getNext e (y:xs)
+
 addVariableToComponent :: String -> Maybe Value -> Component -> Component
 addVariableToComponent name val component =
   component { variables = Map.insert name val (variables component)
@@ -89,7 +96,6 @@ satisfy c = do
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
 enforceMethods c = traverse_ (\(name, e) -> modify $ \s -> s { components = map (\c' -> if identifier c' == identifier c then c' { variables = Map.insert name (eval e (variables c')) (variables c') } else c') (components s) })
 
-
 enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
 enforceIntercalatingConstraint i = do
     comps <- gets components
@@ -101,8 +107,12 @@ enforceIntercalatingConstraint i = do
             let fromVars = variables c
                 mte = concatExprsInMethodList $ fromMaybe [] $ methodsToEnforce $ plan [] $ mconcat inter
                 newVals = map (\(name, e) -> (name, eval e fromVars)) mte
-            modify $ \s -> s { components = map (\c' -> if identifier c' == i + 1 then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
-            liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
+                nextElem = getNext c comps
+            case nextElem of
+                Nothing -> return () -- last element
+                Just ne -> do
+                    modify $ \s -> s { components = map (\c' -> if identifier c' == identifier ne then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
+                    liftIO $ putStrLn $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
 inputExpr :: String -> IO (String, Expr)
 inputExpr name = do
