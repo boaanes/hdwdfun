@@ -45,9 +45,12 @@ ghc-options:
 - -Wredundant-constraints
 
 library:
-  source-dirs: src
+  source-dirs:
+    - src
+    - src/examples
   exposed-modules:
     - WarmDrinkF
+    - Agenda
     - CLI
 
 executables:

@@ -10,7 +10,7 @@ import           Algs                  (computePlan, concatExprsInMethodList,
 import           Control.Applicative   ((<|>))
 import           Control.Monad
 import           Control.Monad.State
-import           Data.Foldable         (find, foldl')
+import           Data.Foldable         (find, foldl', traverse_)
 import           Data.List             (intercalate)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
@@ -28,6 +28,17 @@ import           WarmDrinkF            (Component (..), ConstraintSystem (..))
 safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
+
+insertAt :: (Eq a) => Int -> a -> [a] -> [a]
+insertAt _ x []     = [x]
+insertAt 0 x xs     = x:xs
+insertAt n x (y:ys) = y : insertAt (n-1) x ys
+
+swapAt :: Int -> Int -> [a] -> [a]
+swapAt i j xs = [get' k x | (k, x) <- zip [0..] xs]
+    where get' k x | k == i = xs !! j
+                  | k == j = xs !! i
+                  | otherwise = x
 
 addVariableToComponent :: String -> Maybe Value -> Component -> Component
 addVariableToComponent name val component =
@@ -76,11 +87,8 @@ satisfy c = do
         ) (computePlan st cs)
 
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
-enforceMethods c methods = forM_ methods (\(name, e) -> do
-    let vars = variables c
-        newVal = eval e vars
-    modify $ \s -> s { components = map (\c' -> if c' == c then c' { variables = Map.insert name newVal (variables c') } else c') (components s) }
-    )
+enforceMethods c = traverse_ (\(name, e) -> modify $ \s -> s { components = map (\c' -> if identifier c' == identifier c then c' { variables = Map.insert name (eval e (variables c')) (variables c') } else c') (components s) })
+
 
 enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
 enforceIntercalatingConstraint i = do
@@ -142,9 +150,8 @@ processInput input = do
             if null comps
                 then case readMaybe @Int nCompsStr of
                     Just n -> do
-                        replicateM_ n $ do
-                            let newComp = Component (length comps) Map.empty [] []
-                            modify $ \cs -> cs { components = components cs ++ [newComp] }
+                        let newComps = fmap (\i -> Component i Map.empty [] []) [0..n-1]
+                        modify $ \cs -> cs { components = newComps }
                         liftIO $ putStrLn $ "Added " ++ nCompsStr ++ " components"
                     _ -> liftIO $ putStrLn "Couldnt parse the number of components"
                 else liftIO $ putStrLn "There are already components defined"
@@ -181,6 +188,33 @@ processInput input = do
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
                             liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> liftIO $ putStrLn "Couldnt parse id or the value"
+        ["insert", ident] -> do
+            case readMaybe ident of
+                (Just n) -> do
+                    comps <- gets components
+                    if n >= length comps
+                        then liftIO $ putStrLn "Index out of bounds"
+                        else do
+                            maybeComp <- findComponent ident
+                            case maybeComp of
+                                (Just c) -> do
+                                    let newComp = c { identifier = length comps }
+                                        newComps = insertAt n newComp comps
+                                    modify $ \cs -> cs { components = newComps }
+                                    liftIO $ putStrLn $ "Inserted component at index " ++ show n
+                                Nothing -> liftIO $ putStrLn "Couldnt find component"
+                Nothing -> liftIO $ putStrLn "Couldnt parse id"
+        ["swap", ident] -> do
+            case readMaybe @Int ident of
+                (Just n) -> do
+                    comps <- gets components
+                    if n >= length comps - 1
+                        then liftIO $ putStrLn "Index out of bounds"
+                        else do
+                            let newComps = swapAt n (n + 1) comps
+                            modify $ \cs -> cs { components = newComps }
+                            liftIO $ putStrLn $ "Swapped component at index " ++ show n ++ " with component at index " ++ show (n + 1)
+                Nothing -> liftIO $ putStrLn "Couldnt parse id"
         ["delete", "var", var] -> do
             comps <- gets components
             let newComps = deleteVariableFromComponent var <$> comps
@@ -225,19 +259,22 @@ processInput input = do
                 (Just c) -> satisfy c
                 _        -> liftIO $ putStrLn "Couldnt find component"
         ["run", "inter", ident] -> do
-            case readMaybe ident of
+            case readMaybe @Int ident of
                 (Just n) -> do
                     comps <- gets components
-                    forM_ (drop n comps) $ \c -> satisfy c >> enforceIntercalatingConstraint (identifier c)
+                    traverse_ (\c -> satisfy c >> enforceIntercalatingConstraint (identifier c)) $ drop n comps
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
+            liftIO $ putStrLn "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
             liftIO $ putStrLn "comp - add a component"
             liftIO $ putStrLn "list <n> - add n components"
             liftIO $ putStrLn "var <var> <val> - add a variable to all components"
             liftIO $ putStrLn "constr <n> - add a constraint with n methods to all components"
             liftIO $ putStrLn "inter <n> - add an intercalating constraint with n methods"
             liftIO $ putStrLn "update <id> <var> <val> - update a variable of a component"
+            liftIO $ putStrLn "insert <index> - insert a component at the given index"
+            liftIO $ putStrLn "swap <index> - swap a component at the given index with the next one"
             liftIO $ putStrLn "delete var <var> - delete a variable from a component"
             liftIO $ putStrLn "delete comp <id> - delete a component"
             liftIO $ putStrLn "show comp - show all components"

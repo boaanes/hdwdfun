@@ -1,6 +1,7 @@
 module Main
     ( main
     ) where
+import qualified Agenda
 import           CLI                 (userInputLoop)
 import           Control.Monad.State (evalStateT)
 import           WarmDrinkF          (ConstraintSystem (..))
@@ -9,7 +10,7 @@ import           WarmDrinkF          (ConstraintSystem (..))
 
 main :: IO ()
 main = do
-    putStrLn "Welcome to HotDrink"
+    putStrLn "Welcome to ScaldishDrink!"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT userInputLoop (ConstraintSystem [] [])
+    evalStateT userInputLoop (ConstraintSystem [Agenda.compA, Agenda.compB] [Agenda.inter])
     putStrLn "Goodbye"

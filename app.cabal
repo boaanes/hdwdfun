@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       WarmDrinkF
+      Agenda
       CLI
   other-modules:
       Algs
@@ -36,9 +37,11 @@ library
       HotDrinkF
       PrettyPrinter
       TestData
+      Whap
       Paths_app
   hs-source-dirs:
       src
+      src/examples
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       algebraic-graphs

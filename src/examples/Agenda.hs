@@ -44,7 +44,7 @@ inter = Constraint [i1Graph]
 
 -- test components
 compA :: Component
-compA = Component 0 (Map.fromList [("start", Just (DoubleVal 1)), ("duration", Just (DoubleVal 10)), ("end", Just (DoubleVal 11))]) [constraint] ["s", "d", "e"]
+compA = Component 0 (Map.fromList [("start", Just (DoubleVal 1)), ("duration", Just (DoubleVal 10)), ("end", Just (DoubleVal 11))]) [constraint] ["start", "duration", "end"]
 
 compB :: Component
-compB = Component 1 (Map.fromList [("start", Just (DoubleVal 1)), ("duration", Just (DoubleVal 10)), ("end", Just (DoubleVal 11))]) [constraint] ["s", "d", "e"]
+compB = Component 1 (Map.fromList [("start", Just (DoubleVal 1)), ("duration", Just (DoubleVal 10)), ("end", Just (DoubleVal 11))]) [constraint] ["start", "duration", "end"]
