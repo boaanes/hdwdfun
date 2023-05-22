@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs            #-}
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 module CLI
     ( userInputLoop
     ) where
@@ -29,16 +30,11 @@ safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
 
-insertAt :: (Eq a) => Int -> a -> [a] -> [a]
-insertAt _ x []     = [x]
-insertAt 0 x xs     = x:xs
-insertAt n x (y:ys) = y : insertAt (n-1) x ys
-
-swapAt :: Int -> Int -> [a] -> [a]
-swapAt i j xs = [get' k x | (k, x) <- zip [0..] xs]
-    where get' k x | k == i = xs !! j
-                  | k == j = xs !! i
-                  | otherwise = x
+insertAfter :: Component -> Component -> [Component] -> [Component]
+insertAfter _ _ [] = []
+insertAfter c1 c2 (c:cs)
+  | c == c1 = c : c2 : cs
+  | otherwise = c : insertAfter c1 c2 cs
 
 getNext :: Eq a => a -> [a] -> Maybe a
 getNext _ [] = Nothing
@@ -46,6 +42,16 @@ getNext _ [_] = Nothing
 getNext e (x:y:xs)
   | e == x = Just y
   | otherwise = getNext e (y:xs)
+
+swapComponents :: Component -> Component -> [Component] -> [Component]
+swapComponents _ _ [] = []
+swapComponents c1 c2 (c:cs)
+  | c == c1 = c2 : swapComponents c1 c2 cs
+  | c == c2 = c1 : swapComponents c1 c2 cs
+  | otherwise = c : swapComponents c1 c2 cs
+
+getComponentWithBiggestId :: [Component] -> Component
+getComponentWithBiggestId = foldl' (\c1 c2 -> if identifier c1 > identifier c2 then c1 else c2) (Component 0 Map.empty [] [])
 
 addVariableToComponent :: String -> Maybe Value -> Component -> Component
 addVariableToComponent name val component =
@@ -199,32 +205,25 @@ processInput input = do
                             liftIO $ putStrLn $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> liftIO $ putStrLn "Couldnt parse id or the value"
         ["insert", ident] -> do
-            case readMaybe ident of
-                (Just n) -> do
+            maybePrecedingComp <- findComponent ident
+            case maybePrecedingComp of
+                Nothing -> liftIO $ putStrLn "Couldnt find component"
+                Just preceedingComp -> do
                     comps <- gets components
-                    if n >= length comps
-                        then liftIO $ putStrLn "Index out of bounds"
-                        else do
-                            maybeComp <- findComponent ident
-                            case maybeComp of
-                                (Just c) -> do
-                                    let newComp = c { identifier = length comps }
-                                        newComps = insertAt n newComp comps
-                                    modify $ \cs -> cs { components = newComps }
-                                    liftIO $ putStrLn $ "Inserted component at index " ++ show n
-                                Nothing -> liftIO $ putStrLn "Couldnt find component"
-                Nothing -> liftIO $ putStrLn "Couldnt parse id"
-        ["swap", ident] -> do
-            case readMaybe @Int ident of
-                (Just n) -> do
+                    let newComp = preceedingComp { identifier = (identifier . getComponentWithBiggestId) comps + 1 }
+                        newComps = insertAfter preceedingComp newComp comps
+                    modify $ \cs -> cs { components = newComps }
+                    liftIO $ putStrLn $ "Inserted component after component with id " ++ show (identifier preceedingComp)
+        ["swap", identA, identB] -> do
+            maybeCompA <- findComponent identA
+            maybeCompB <- findComponent identB
+            case (maybeCompA, maybeCompB) of
+                (Just compA, Just compB) -> do
                     comps <- gets components
-                    if n >= length comps - 1
-                        then liftIO $ putStrLn "Index out of bounds"
-                        else do
-                            let newComps = swapAt n (n + 1) comps
-                            modify $ \cs -> cs { components = newComps }
-                            liftIO $ putStrLn $ "Swapped component at index " ++ show n ++ " with component at index " ++ show (n + 1)
-                Nothing -> liftIO $ putStrLn "Couldnt parse id"
+                    let newComps = swapComponents compA compB comps
+                    modify $ \cs -> cs { components = newComps }
+                    liftIO $ putStrLn $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
+                _ -> liftIO $ putStrLn "Couldnt find one or both components"
         ["delete", "var", var] -> do
             comps <- gets components
             let newComps = deleteVariableFromComponent var <$> comps
@@ -234,7 +233,7 @@ processInput input = do
             case readMaybe ident of
                 (Just n) -> do
                     modify $ \s -> s { components = filter (\c -> identifier c /= n) (components s) }
-                    liftIO $ putStrLn $ "Deleted component with id: " ++ ident
+                    liftIO $ putStrLn $ "Deleted component with id: " ++ ident
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["show", "comp"] -> do
             comps <- gets components
@@ -248,7 +247,7 @@ processInput input = do
             comps <- gets components
             let comp = safeHead comps
             case comp of
-                Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
+                Just c -> liftIO $ putStrLn $ showConstraintsOfComponent c
                 _      -> liftIO $ putStrLn "No components defined"
         ["show", "inter"] -> do
             cs <- gets intercalatingConstraints
@@ -256,12 +255,12 @@ processInput input = do
         ["show", "strength", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
-                (Just c) -> liftIO $ putStrLn $ showStrengthOfComponent c
+                (Just c) -> liftIO $ putStrLn $ showStrengthOfComponent c
                 _        -> liftIO $ putStrLn "Couldnt find component"
         ["show", "plan", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
-                (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
+                (Just c) -> liftIO $ putStrLn $ showPlanOfComponent c
                 _        -> liftIO $ putStrLn "Couldnt find component"
         ["run", ident] -> do
             maybeComp <- findComponent ident
@@ -276,7 +275,7 @@ processInput input = do
                 _ -> liftIO $ putStrLn "Couldnt parse id"
         ["help"] -> do
             liftIO $ putStrLn "Commands:"
-            liftIO $ putStrLn "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
+            liftIO $ putStrLn "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
             liftIO $ putStrLn "comp - add a component"
             liftIO $ putStrLn "list <n> - add n components"
             liftIO $ putStrLn "var <var> <val> - add a variable to all components"
