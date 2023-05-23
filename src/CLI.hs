@@ -3,7 +3,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 module CLI
-    ( userInputLoop
+    ( Mode (..)
+    , userInputLoop
     ) where
 import           AST                   (Expr (..), Value (..), parseExpr)
 import           Algs                  (computePlan, concatExprsInMethodList,
@@ -24,6 +25,8 @@ import           Text.Megaparsec       (parse)
 import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
 import           WarmDrinkF            (Component (..), ConstraintSystem (..))
+
+data Mode = Normal | Cowboy deriving (Eq, Show)
 
 --- Pure helpers ---
 
@@ -100,12 +103,7 @@ satisfy :: Component -> StateT ConstraintSystem IO ()
 satisfy c = do
     let st = strength c
     let cs = constraints c
-    maybe
-        (putLnIO "No plan found")
-        (\m -> do
-            enforceMethods c (concatExprsInMethodList m)
-            putLnIO $ "Enforced plan: " ++ intercalate " -> " (getLabels $ Just m) ++ " on component " ++ show (identifier c)
-        ) (computePlan st cs)
+    maybe (putLnIO "No plan found") (enforceMethods c . concatExprsInMethodList) (computePlan st cs)
 
 enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
 enforceMethods c = traverse_ (\(name, e) -> modify $ \s -> s { components = map (\c' -> if identifier c' == identifier c then c' { variables = Map.insert name (eval e (variables c')) (variables c') } else c') (components s) })
@@ -126,7 +124,6 @@ enforceIntercalatingConstraint i = do
                 Nothing -> return () -- last element
                 Just ne -> do
                     modify $ \s -> s { components = map (\c' -> if identifier c' == identifier ne then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
-                    putLnIO $ "Enforcing intercalating constraints on component " ++ show i ++ " to component " ++ show (i + 1)
 
 satisfyInter :: String -> StateT ConstraintSystem IO ()
 satisfyInter ident = do
@@ -166,9 +163,13 @@ inputMethod = do
 
 --- Process input from user ---
 
-processInput :: String -> StateT ConstraintSystem IO ()
-processInput input = do
+processInput :: Mode -> String -> StateT ConstraintSystem IO Mode
+processInput mode input = do
     case words input of
+        ["cowboy"] -> putLnIO "Entering cowboy (debug) mode" >> return Cowboy
+        ["normal"] -> do
+            comps <- gets components
+            satisfyInter ((show . identifier . head) comps) >> putLnIO "Entering normal mode" >> return Normal
         ["comp"] -> do
             comps <- gets components
             if null comps
@@ -176,8 +177,9 @@ processInput input = do
                 else do
                     let lastComp = last comps
                     modify $ \cs -> cs { components = components cs ++ [lastComp { identifier = identifier lastComp + 1 }] }
-                    satisfyInter $ show $ identifier lastComp
+                    satisfyInter $ (show . identifier . head) comps
             putLnIO "Added component"
+            return mode
         ["list", nCompsStr] -> do
             comps <- gets components
             if null comps
@@ -188,6 +190,7 @@ processInput input = do
                         putLnIO $ "Added " ++ nCompsStr ++ " components"
                     _ -> putLnIO "Couldnt parse the number of components"
                 else putLnIO "There are already components defined"
+            return mode
         ["var", var, val] -> do
             case readValue val of
                 Nothing -> putLnIO "Couldnt parse the value"
@@ -196,6 +199,7 @@ processInput input = do
                     let newComps = addVariableToComponent var (Just v) <$> comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Added variable: " ++ var ++ " = " ++ val
+            return mode
         ["constr", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
@@ -203,6 +207,7 @@ processInput input = do
                     modify $ \cs -> cs { components = fmap (\c -> c { constraints = Constraint methodGraphs : constraints c }) (components cs) }
                     putLnIO $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
+            return mode
         ["inter", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
@@ -210,6 +215,7 @@ processInput input = do
                     modify $ \cs -> cs { intercalatingConstraints = Constraint methodGraphs : intercalatingConstraints cs }
                     putLnIO $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
+            return mode
         ["update", ident, var, val] -> do
             case readValue val of
                 Just v -> do
@@ -219,9 +225,10 @@ processInput input = do
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
-                            satisfyInter ident
+                            unless (mode == Cowboy) $ satisfyInter ident
                             putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> putLnIO "Couldnt parse id or the value"
+            return mode
         ["insert", ident] -> do
             maybePrecedingComp <- findComponent ident
             case maybePrecedingComp of
@@ -231,8 +238,9 @@ processInput input = do
                     let newComp = preceedingComp { identifier = (identifier . getComponentWithBiggestId) comps + 1 }
                         newComps = insertAfter preceedingComp newComp comps
                     modify $ \cs -> cs { components = newComps }
-                    satisfyInter ident
+                    unless (mode == Cowboy) $ satisfyInter ident
                     putLnIO $ "Inserted component after component with id " ++ show (identifier preceedingComp)
+            return mode
         ["swap", identA, identB] -> do
             maybeCompA <- findComponent identA
             maybeCompB <- findComponent identB
@@ -242,13 +250,15 @@ processInput input = do
                     let newComps = swapComponents compA compB comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
-                    maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
+                    unless (mode == Cowboy) $ maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
                 _ -> putLnIO "Couldnt find one or both components"
+            return mode
         ["delete", "var", var] -> do
             comps <- gets components
             let newComps = deleteVariableFromComponent var <$> comps
             modify $ \cs -> cs { components = newComps }
             putLnIO $ "Deleted variable: '" ++ var ++ "' from all components"
+            return mode
         ["delete", "comp", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
@@ -258,43 +268,54 @@ processInput input = do
                     let newComps = filter ((/= identifier c) . identifier) comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Deleted component with id " ++ show (identifier c)
-                    maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
+                    unless (mode == Cowboy) $ maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
+            return mode
         ["show", "comp"] -> do
             comps <- gets components
             putLnIO $ intercalate "\n\n" $ fmap showComponent comps
+            return mode
         ["show", "var", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 Nothing -> putLnIO "Couldnt find component"
                 Just c  -> putLnIO $ showVariablesOfComponent c
+            return mode
         ["show", "constr"] -> do
             comps <- gets components
             let comp = safeHead comps
             case comp of
                 Just c -> putLnIO $ showConstraintsOfComponent c
                 _      -> putLnIO "No components defined"
+            return mode
         ["show", "inter"] -> do
             cs <- gets intercalatingConstraints
             putLnIO $ intercalate "\n" $ fmap ((<> "\n" <> replicate 80 '-'). prettyPrintConstraint) cs
+            return mode
         ["show", "strength", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 (Just c) -> putLnIO $ showStrengthOfComponent c
                 _        -> putLnIO "Couldnt find component"
+            return mode
         ["show", "plan", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 (Just c) -> putLnIO $ showPlanOfComponent c
                 _        -> putLnIO "Couldnt find component"
+            return mode
         ["run", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 (Just c) -> satisfy c
                 _        -> putLnIO "Couldnt find component"
-        ["run", "inter", ident] -> satisfyInter ident
+            return mode
+        ["run", "inter", ident] -> satisfyInter ident >> return mode
+        ["satisty"] -> gets components >>= \comps -> satisfyInter ((show . identifier . head) comps) >> return mode
         ["help"] -> do
-            putLnIO "Commands:"
+            putLnIO $ "\ESC[1;31mYou are in " <> show mode <> " mode\ESC[0m"
+            putLnIO "\ESC[31mAvailable commands are:\ESC[0m"
             putLnIO "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
+            putLnIO "normal - enter normal mode, operations will automatically satisfy the constraint system"
             putLnIO "comp - add a component"
             putLnIO "list <n> - add n components"
             putLnIO "var <var> <val> - add a variable to all components"
@@ -315,8 +336,9 @@ processInput input = do
             putLnIO "run inter <id> - satisfy the whole constraint system from the given component to the end"
             putLnIO "help - show this message"
             putLnIO "exit - exit the program"
-        ["exit"] -> return ()
-        _ -> putLnIO "Unknown command"
+            return mode
+        ["exit"] -> return mode
+        _ -> putLnIO "Unknown command" >> return mode
 
 putLnIO :: MonadIO m => String -> m ()
 putLnIO = liftIO . putStrLn
@@ -332,8 +354,8 @@ prompt = do
 
 
 -- Main CLI loop
-userInputLoop :: StateT ConstraintSystem IO ()
-userInputLoop = do
+userInputLoop :: Mode -> StateT ConstraintSystem IO ()
+userInputLoop mode = do
     input <- liftIO prompt
-    processInput input
-    unless (input == "exit") userInputLoop
+    newMode <- processInput mode input
+    unless (input == "exit") $ userInputLoop newMode
