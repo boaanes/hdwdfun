@@ -42,7 +42,7 @@ showEdge :: [String] -> String -> [String] -> String
 showEdge ins m outs = "[" <> intercalate "," ins <> "] -> " <> m <> " -> [" <> intercalate "," outs <> "]"
 
 showComponent :: Component -> String
-showComponent c = "Component " ++ show (identifier c) ++ ": " ++ "\n" ++ showVariablesOfComponent c
+showComponent c = "\ESC[1;35mComponent " ++ show (identifier c) ++ ": " ++ "\ESC[0m" ++ "\n" ++ showVariablesOfComponent c
 
 showVariablesOfComponent :: Component -> String
 showVariablesOfComponent c = intercalate "\n" (map (\case (k, Nothing) -> k ++ " = Nothing"; (k, Just v) -> k ++ " = " ++ show v) (Map.toList (variables c)))
