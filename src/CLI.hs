@@ -170,7 +170,7 @@ processInput mode input = do
         ["normal"] -> do
             comps <- gets components
             satisfyInter ((show . identifier . head) comps) >> putLnIO "Entering normal mode" >> return Normal
-        ["comp"] -> do
+        ["addComp"] -> do
             comps <- gets components
             if null comps
                 then modify $ \s -> s { components = components s ++ [Component (length (components s)) Map.empty [] []] }
@@ -191,7 +191,7 @@ processInput mode input = do
                     _ -> putLnIO "Couldnt parse the number of components"
                 else putLnIO "There are already components defined"
             return mode
-        ["var", var, val] -> do
+        ["addVar", var, val] -> do
             case readValue val of
                 Nothing -> putLnIO "Couldnt parse the value"
                 Just v -> do
@@ -200,7 +200,7 @@ processInput mode input = do
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Added variable: " ++ var ++ " = " ++ val
             return mode
-        ["constr", nMethodsStr] -> do
+        ["addConstr", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
@@ -210,7 +210,7 @@ processInput mode input = do
                     putLnIO $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
             return mode
-        ["inter", nMethodsStr] -> do
+        ["addInter", nMethodsStr] -> do
             case readMaybe @Int nMethodsStr of
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
@@ -220,7 +220,7 @@ processInput mode input = do
                     putLnIO $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
             return mode
-        ["update", ident, var, val] -> do
+        ["updateVar", ident, var, val] -> do
             case readValue val of
                 Just v -> do
                     maybeComp <- findComponent ident
@@ -233,7 +233,13 @@ processInput mode input = do
                             putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> putLnIO "Couldnt parse id or the value"
             return mode
-        ["insert", ident] -> do
+        ["deleteVar", var] -> do
+            comps <- gets components
+            let newComps = deleteVariableFromComponent var <$> comps
+            modify $ \cs -> cs { components = newComps }
+            putLnIO $ "Deleted variable: '" ++ var ++ "' from all components"
+            return mode
+        ["insertAfter", ident] -> do
             maybePrecedingComp <- findComponent ident
             case maybePrecedingComp of
                 Nothing -> putLnIO "Couldnt find component"
@@ -257,13 +263,7 @@ processInput mode input = do
                     unless (mode == Cowboy) $ maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
                 _ -> putLnIO "Couldnt find one or both components"
             return mode
-        ["delete", "var", var] -> do
-            comps <- gets components
-            let newComps = deleteVariableFromComponent var <$> comps
-            modify $ \cs -> cs { components = newComps }
-            putLnIO $ "Deleted variable: '" ++ var ++ "' from all components"
-            return mode
-        ["delete", "comp", ident] -> do
+        ["remove", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 Nothing -> putLnIO "Couldnt find component"
@@ -308,37 +308,38 @@ processInput mode input = do
                 (Just c) -> putLnIO $ showPlanOfComponent c
                 _        -> putLnIO "Couldnt find component"
             return mode
-        ["run", ident] -> do
+        ["runLocal", ident] -> do
             maybeComp <- findComponent ident
             case maybeComp of
                 (Just c) -> satisfy c
                 _        -> putLnIO "Couldnt find component"
             return mode
-        ["run", "inter", ident] -> satisfyInter ident >> return mode
+        ["runInter", "inter", ident] -> satisfyInter ident >> return mode
         ["satisty"] -> gets components >>= \comps -> satisfyInter ((show . identifier . head) comps) >> return mode
         ["help"] -> do
             putLnIO $ "\ESC[1;31mYou are in " <> show mode <> " mode\ESC[0m"
             putLnIO "\ESC[31mAvailable commands are:\ESC[0m"
             putLnIO "cowboy - enter cowboy mode, operations will not automatically satisfy the constraint system"
             putLnIO "normal - enter normal mode, operations will automatically satisfy the constraint system"
-            putLnIO "comp - add a component"
+            putLnIO "addComp - add a component"
             putLnIO "list <n> - add n components"
-            putLnIO "var <var> <val> - add a variable to all components"
-            putLnIO "constr <n> - add a constraint with n methods to all components"
-            putLnIO "inter <n> - add an intercalating constraint with n methods"
-            putLnIO "update <id> <var> <val> - update a variable of a component"
-            putLnIO "insert <id> - insert a component after the component with the given id"
+            putLnIO "addVar <var> <val> - add a variable to all components"
+            putLnIO "addConstr <n> - add a constraint with n methods to all components"
+            putLnIO "addInter <n> - add an intercalating constraint with n methods"
+            putLnIO "updateVar <id> <var> <val> - update a variable of a component"
+            putLnIO "deleteVar <var> - delete a variable from all components"
+            putLnIO "insertAfter <id> - insert a component after the component with the given id"
             putLnIO "swap <id> <id> - swap the positions two components"
-            putLnIO "delete var <var> - delete a variable from a component"
-            putLnIO "delete comp <id> - delete a component"
+            putLnIO "remove <id> - delete a component"
             putLnIO "show comp - show all components"
             putLnIO "show var <id> - show all variables of a component (all components have the same set of variables)"
             putLnIO "show constr - show the constraints of each component"
             putLnIO "show inter - show all intercalating constraints"
             putLnIO "show strength <id> - show the strength of the variables of a component"
             putLnIO "show plan <id> - show the current plan of a component"
-            putLnIO "run <id> - enforce the plan of a component"
-            putLnIO "run inter <id> - satisfy the whole constraint system from the given component to the end"
+            putLnIO "runLocal <id> - enforce the plan of a component"
+            putLnIO "runInter <id> - satisfy the whole constraint system from the given component to the end"
+            putLnIO "satisfy - satisfy the whole constraint system from the first component to the end"
             putLnIO "help - show this message"
             putLnIO "exit - exit the program"
             return mode
