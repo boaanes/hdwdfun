@@ -26,7 +26,7 @@ import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
 import           WarmDrinkF            (Component (..), ConstraintSystem (..))
 
-data Mode = Normal | Cowboy deriving (Eq, Show)
+data Mode = Normal | Manual deriving (Eq, Show)
 
 --- Pure helpers ---
 
@@ -166,7 +166,7 @@ inputMethod = do
 processInput :: Mode -> String -> StateT ConstraintSystem IO Mode
 processInput mode input = do
     case words input of
-        ["cowboy"] -> putLnIO "Entering cowboy mode" >> return Cowboy
+        ["manual"] -> putLnIO "Entering manual mode" >> return Manual
         ["normal"] -> do
             comps <- gets components
             satisfyInter ((show . identifier . head) comps) >> putLnIO "Entering normal mode" >> return Normal
@@ -229,7 +229,7 @@ processInput mode input = do
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
-                            unless (mode == Cowboy) $ satisfyInter ident
+                            unless (mode == Manual) $ satisfyInter ident
                             putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> putLnIO "Couldnt parse id or the value"
             return mode
@@ -248,7 +248,7 @@ processInput mode input = do
                     let newComp = preceedingComp { identifier = (identifier . getComponentWithBiggestId) comps + 1 }
                         newComps = insertAfter preceedingComp newComp comps
                     modify $ \cs -> cs { components = newComps }
-                    unless (mode == Cowboy) $ satisfyInter ident
+                    unless (mode == Manual) $ satisfyInter ident
                     putLnIO $ "Inserted component after component with id " ++ show (identifier preceedingComp)
             return mode
         ["swap", identA, identB] -> do
@@ -260,7 +260,7 @@ processInput mode input = do
                     let newComps = swapComponents compA compB comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
-                    unless (mode == Cowboy) $ maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
+                    unless (mode == Manual) $ maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
                 _ -> putLnIO "Couldnt find one or both components"
             return mode
         ["remove", ident] -> do
@@ -272,7 +272,7 @@ processInput mode input = do
                     let newComps = filter ((/= identifier c) . identifier) comps
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Deleted component with id " ++ show (identifier c)
-                    unless (mode == Cowboy) $ maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
+                    unless (mode == Manual) $ maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
                     when (null newComps) $ modify $ \cs -> cs { intercalatingConstraints = [] }
             return mode
         ["show", "comp"] -> do
@@ -319,7 +319,7 @@ processInput mode input = do
         ["help"] -> do
             putLnIO $ "\ESC[1;31mYou are in " <> show mode <> " mode\ESC[0m"
             putLnIO "\ESC[31mAvailable commands are:\ESC[0m"
-            putLnIO "cowboy - enter cowboy mode, operations will not automatically satisfy the constraint system"
+            putLnIO "manual - enter manual mode, operations will not automatically satisfy the constraint system"
             putLnIO "normal - enter normal mode, operations will automatically satisfy the constraint system"
             putLnIO "addComp - add a component"
             putLnIO "list <n> - add n components"
