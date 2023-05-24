@@ -166,7 +166,7 @@ inputMethod = do
 processInput :: Mode -> String -> StateT ConstraintSystem IO Mode
 processInput mode input = do
     case words input of
-        ["cowboy"] -> putLnIO "Entering cowboy (debug) mode" >> return Cowboy
+        ["cowboy"] -> putLnIO "Entering cowboy mode" >> return Cowboy
         ["normal"] -> do
             comps <- gets components
             satisfyInter ((show . identifier . head) comps) >> putLnIO "Entering normal mode" >> return Normal
@@ -205,6 +205,8 @@ processInput mode input = do
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { components = fmap (\c -> c { constraints = Constraint methodGraphs : constraints c }) (components cs) }
+                    comps <- gets components
+                    satisfyInter $ (show . identifier . head) comps
                     putLnIO $ "Added constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
             return mode
@@ -213,6 +215,8 @@ processInput mode input = do
                 Just n -> do
                     methodGraphs <- liftIO $ traverse (const inputMethod) [1..n]
                     modify $ \cs -> cs { intercalatingConstraints = Constraint methodGraphs : intercalatingConstraints cs }
+                    comps <- gets components
+                    satisfyInter $ (show . identifier . head) comps
                     putLnIO $ "Added intercalating constraint with " ++ nMethodsStr ++ " methods"
                 _ -> putLnIO "Couldnt parse the id or the number of methods"
             return mode
@@ -269,6 +273,7 @@ processInput mode input = do
                     modify $ \cs -> cs { components = newComps }
                     putLnIO $ "Deleted component with id " ++ show (identifier c)
                     unless (mode == Cowboy) $ maybe (return ()) satisfyInter (getPrev c comps <&> (show . identifier))
+                    when (null newComps) $ modify $ \cs -> cs { intercalatingConstraints = [] }
             return mode
         ["show", "comp"] -> do
             comps <- gets components
@@ -314,7 +319,7 @@ processInput mode input = do
         ["help"] -> do
             putLnIO $ "\ESC[1;31mYou are in " <> show mode <> " mode\ESC[0m"
             putLnIO "\ESC[31mAvailable commands are:\ESC[0m"
-            putLnIO "cowboy - enter manual mode, operations will not automatically satisfy the constraint system"
+            putLnIO "cowboy - enter cowboy mode, operations will not automatically satisfy the constraint system"
             putLnIO "normal - enter normal mode, operations will automatically satisfy the constraint system"
             putLnIO "comp - add a component"
             putLnIO "list <n> - add n components"

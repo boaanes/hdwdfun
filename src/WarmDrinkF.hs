@@ -16,7 +16,7 @@ data Component
       }
   deriving (Eq, Show)
 
-data ConstraintSystem
+data ConstraintSystem -- perhaps rename to list or something???
   = ConstraintSystem
       { components               :: [Component]
       , intercalatingConstraints :: [Constraint]
