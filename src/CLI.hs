@@ -182,14 +182,14 @@ processInput mode input = do
             return mode
         ["new", "list", nCompsStr] -> do
             comps <- gets components
-            if null comps
-                then case readMaybe @Int nCompsStr of
-                    Just n -> do
-                        let newComps = fmap (\i -> Component i Map.empty [] []) [0..n-1]
-                        modify $ \cs -> cs { components = newComps }
-                        putLnIO $ "Added " ++ nCompsStr ++ " components"
-                    _ -> putLnIO "Couldnt parse the number of components"
-                else putLnIO "There are already components defined"
+            case readMaybe @Int nCompsStr of
+                Just n -> do
+                    let startId = identifier (getComponentWithBiggestId comps) + 1
+                        clone = fromMaybe (Component 0 Map.empty [] []) (safeHead comps)
+                        newComps = fmap (\i -> Component i (variables clone) (constraints clone) (strength clone)) [startId..startId+n-1]
+                    modify $ \cs -> cs { components = comps ++ newComps }
+                    putLnIO $ "Added " ++ nCompsStr ++ " components"
+                _ -> putLnIO "Couldnt parse the number of components"
             return mode
         ["new", "var", var, val] -> do
             case readValue val of
