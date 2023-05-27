@@ -61,6 +61,15 @@ swapComponents c1 c2 (c:cs)
   | c == c2 = c1 : swapComponents c1 c2 cs
   | otherwise = c : swapComponents c1 c2 cs
 
+occursFirst :: Eq a => a -> a -> [a] -> a
+occursFirst _ _ [] = error "Neither element occurs in the list"
+occursFirst _ _ [_] = error "Neither element occurs in the list"
+occursFirst e1 e2 (x:xs)
+    | e1 == x = e1
+    | e2 == x = e2
+    | otherwise = occursFirst e1 e2 xs
+
+
 getComponentWithBiggestId :: [Component] -> Component
 getComponentWithBiggestId = foldl' (\c1 c2 -> if identifier c1 > identifier c2 then c1 else c2) (Component 0 Map.empty [] [])
 
@@ -259,8 +268,9 @@ processInput mode input = do
                     comps <- gets components
                     let newComps = swapComponents compA compB comps
                     modify $ \cs -> cs { components = newComps }
+                    let firstOfAB = occursFirst compA compB newComps
                     putLnIO $ "Swapped components with ids " ++ show (identifier compA) ++ " and " ++ show (identifier compB)
-                    unless (mode == Manual) $ maybe (return ()) satisfyInter ((getPrev compA comps <&> (show . identifier)) <|> Just (show $ identifier compB))
+                    unless (mode == Manual) $ maybe (return ()) satisfyInter ((getPrev firstOfAB newComps <&> (show . identifier)) <|> Just (show $ identifier firstOfAB))
                 _ -> putLnIO "Couldnt find one or both components"
             return mode
         ["rmv", ident] -> do
