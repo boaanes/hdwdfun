@@ -24,7 +24,7 @@ import           System.IO
 import           Text.Megaparsec       (parse)
 import           Text.Megaparsec.Error (errorBundlePretty)
 import           Text.Read             (readMaybe)
-import           WarmDrinkF            (Component (..), ConstraintSystem (..))
+import           WarmDrinkF            (Component (..), ComponentList (..))
 
 data Mode = Normal | Manual deriving (Eq, Show)
 
@@ -92,23 +92,23 @@ applyAllInterclatingConstraints inters comps =
 
 --- IO helpers ---
 
-findComponent :: String -> StateT ConstraintSystem IO (Maybe Component)
+findComponent :: String -> StateT ComponentList IO (Maybe Component)
 findComponent ident = do
     comps <- gets components
     return $ case readMaybe ident of
         Just identInt -> find (\c -> identifier c == identInt) comps
         Nothing       -> Nothing
 
-satisfy :: Component -> StateT ConstraintSystem IO ()
+satisfy :: Component -> StateT ComponentList IO ()
 satisfy c = do
     let st = strength c
     let cs = constraints c
     maybe (putLnIO "No plan found") (enforceMethods c . concatExprsInMethodList) (computePlan st cs)
 
-enforceMethods :: Component -> [(String, Expr)] -> StateT ConstraintSystem IO ()
+enforceMethods :: Component -> [(String, Expr)] -> StateT ComponentList IO ()
 enforceMethods c = traverse_ (\(name, e) -> modify $ \s -> s { components = map (\c' -> if identifier c' == identifier c then c' { variables = Map.insert name (eval e (variables c')) (variables c') } else c') (components s) })
 
-enforceIntercalatingConstraint :: Int -> StateT ConstraintSystem IO ()
+enforceIntercalatingConstraint :: Int -> StateT ComponentList IO ()
 enforceIntercalatingConstraint i = do
     comps <- gets components
     inter <- gets intercalatingConstraints
@@ -125,7 +125,7 @@ enforceIntercalatingConstraint i = do
                 Just ne -> do
                     modify $ \s -> s { components = map (\c' -> if identifier c' == identifier ne then c' { variables = Map.union (Map.fromList newVals) (variables c') } else c') (components s) }
 
-satisfyInter :: String -> StateT ConstraintSystem IO ()
+satisfyInter :: String -> StateT ComponentList IO ()
 satisfyInter ident = do
     case readMaybe @Int ident of
         (Just n) -> do
@@ -163,7 +163,7 @@ inputMethod = do
 
 --- Process input from user ---
 
-processInput :: Mode -> String -> StateT ConstraintSystem IO Mode
+processInput :: Mode -> String -> StateT ComponentList IO Mode
 processInput mode input = do
     case words input of
         ["manual"] -> putLnIO "Entering manual mode" >> return Manual
@@ -366,7 +366,7 @@ prompt = do
 
 
 -- Main CLI loop
-userInputLoop :: Mode -> StateT ConstraintSystem IO ()
+userInputLoop :: Mode -> StateT ComponentList IO ()
 userInputLoop mode = do
     input <- liftIO prompt
     newMode <- processInput mode input

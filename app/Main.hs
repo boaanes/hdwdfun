@@ -4,7 +4,7 @@ module Main
 
 import           CLI                 (Mode (..), userInputLoop)
 import           Control.Monad.State (evalStateT)
-import           WarmDrinkF          (ConstraintSystem (..))
+import           WarmDrinkF          (ComponentList (..))
 
 --- Main function (entry point) ---
 
@@ -12,5 +12,5 @@ main :: IO ()
 main = do
     putStrLn "\ESC[1;34mWelcome to ScaldishDrink!\ESC[0m"
     putStrLn "Type 'help' for a list of commands"
-    evalStateT (userInputLoop Normal) (ConstraintSystem [] [])
+    evalStateT (userInputLoop Normal) (ComponentList [] [])
     putStrLn "Goodbye"

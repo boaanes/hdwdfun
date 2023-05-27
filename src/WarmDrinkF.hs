@@ -1,6 +1,6 @@
 module WarmDrinkF
     ( Component (..)
-    , ConstraintSystem (..)
+    , ComponentList (..)
     ) where
 
 import           AST       (Value)
@@ -16,8 +16,8 @@ data Component
       }
   deriving (Eq, Show)
 
-data ConstraintSystem -- perhaps rename to list or something???
-  = ConstraintSystem
+data ComponentList
+  = ComponentList
       { components               :: [Component]
       , intercalatingConstraints :: [Constraint]
       }
