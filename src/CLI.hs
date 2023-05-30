@@ -328,7 +328,7 @@ processInput mode input = do
                 _        -> putLnIO "Couldnt find component"
             return mode
         ["run", "inter", ident] -> satisfyInter ident >> return mode
-        ["run", "all"] -> gets components >>= \comps -> satisfyInter ((show . identifier . head) comps) >> return mode
+        ["run", "all"] -> gets components >>= \comps -> maybe (return mode) (\c -> (satisfyInter . show . identifier) c >> return mode) (safeHead comps)
         ["help"] -> do
             putLnIO $ "\ESC[1;31mYou are in " <> show mode <> " mode\ESC[0m"
             putLnIO "\ESC[31mAvailable commands are:\ESC[0m"
