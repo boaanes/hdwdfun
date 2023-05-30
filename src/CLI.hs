@@ -178,7 +178,10 @@ processInput mode input = do
         ["manual"] -> putLnIO "Entering manual mode" >> return Manual
         ["normal"] -> do
             comps <- gets components
-            satisfyInter ((show . identifier . head) comps) >> putLnIO "Entering normal mode" >> return Normal
+            maybe
+                (putLnIO "Entering normal mode" >> return Normal)
+                (\c -> satisfyInter ((show . identifier) c) >> putLnIO "Entering normal mode" >> return Normal)
+                (safeHead comps)
         ["new", "comp"] -> do
             comps <- gets components
             if null comps
