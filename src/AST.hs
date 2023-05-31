@@ -6,6 +6,8 @@ module AST
     , Parser
     , Value (..)
     , parseExpr
+    , parseValue
+    , parseVar
     ) where
 
 import           Control.Monad                  (guard, void)
@@ -71,26 +73,17 @@ parseFactor = parseParen <|> parseLit <|> try parseKeyword <|> parseVar
     parseParen = between (symbol "(") (symbol ")") parseExpr
     parseLit = Lit <$> parseValue
 
-parseTerm :: Parser Expr
-parseTerm = makeExprParser parseFactor termTable
-  where
-    termTable = [ [ InfixL (BinOp <$> symbol "*")
-                 , InfixL (BinOp <$> symbol "/")
-                 ]
-               ]
-
-parseArith :: Parser Expr
-parseArith = makeExprParser parseTerm arithTable
-  where
-    arithTable = [ [ InfixL (BinOp <$> symbol "+")
-                  , InfixL (BinOp <$> symbol "-")
-                  ]
-                ]
-
 parseExpr :: Parser Expr
-parseExpr = makeExprParser parseArith exprTable
+parseExpr = makeExprParser parseFactor operatorTable
   where
-    exprTable = [ [ InfixL (BinOp <$> symbol "==")
-                 , InfixL (BinOp <$> symbol "!=")
-                 ]
-               ]
+    operatorTable =
+        [ [ InfixL (BinOp <$> symbol "*")
+          , InfixL (BinOp <$> symbol "/")
+          ]
+        , [ InfixL (BinOp <$> symbol "+")
+          , InfixL (BinOp <$> symbol "-")
+          ]
+        , [ InfixL (BinOp <$> symbol "==")
+          , InfixL (BinOp <$> symbol "!=")
+          ]
+        ]
