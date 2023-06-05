@@ -241,7 +241,8 @@ processInput mode input = do
                         Just c -> do
                             let newComp = addVariableToComponent var (Just v) c
                             modify $ \cs -> cs { components = fmap (\c' -> if identifier c' == identifier c then newComp else c') (components cs) }
-                            unless (mode == Manual) $ satisfyInter ident
+                            comps <- gets components
+                            unless (mode == Manual) $ satisfyInter $ (show . identifier . head) comps
                             putLnIO $ "Updated variable: " ++ var ++ " = " ++ val
                 _ -> putLnIO "Couldnt parse id or the value"
             return mode
