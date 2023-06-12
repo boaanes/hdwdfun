@@ -10,7 +10,7 @@ import           WarmDrinkF          (ComponentList (..))
 
 main :: IO ()
 main = do
-    putStrLn "\ESC[1;34mWelcome to ScaldishDrink!\ESC[0m"
+    putStrLn "\ESC[1;34mWelcome to HD/WDFun!\ESC[0m"
     putStrLn "Type 'help' for a list of commands"
     evalStateT (userInputLoop Normal) (ComponentList [] [])
     putStrLn "Goodbye"
